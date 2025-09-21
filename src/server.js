@@ -17,8 +17,19 @@ const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+// Configure CORS to accept requests from Roblox Studio
+app.use(cors({
+    origin: '*', // Allow all origins for development
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' })); // Increased limit for game tree data
+
+// Add request logging
+app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.path}`);
+    next();
+});
 
 // Rate limiting
 const limiter = rateLimit({

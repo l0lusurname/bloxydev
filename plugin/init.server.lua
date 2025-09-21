@@ -7,6 +7,7 @@ local Selection = game:GetService("Selection")
 local config = {
     apiUrl = "http://localhost:3000", -- Local development server
     apiEndpoint = "/api/ai/generate",
+    debug = true -- Enable debug logging
 }
 
 -- Create the plugin toolbar and button
@@ -162,6 +163,23 @@ local function requestAIGeneration(prompt)
         requestSize = "medium" -- Can be configurable later
     }
     
+    if config.debug then
+        print("[AI Plugin] Sending request to:", config.apiUrl .. config.apiEndpoint)
+    end
+    
+    -- Test server connection first
+    local testSuccess, testResult = pcall(function()
+        return HttpService:GetAsync(config.apiUrl .. "/health")
+    end)
+    
+    if not testSuccess then
+        if config.debug then
+            print("[AI Plugin] Server connection test failed:", testResult)
+            print("[AI Plugin] Make sure the server is running: npm run start")
+        end
+        return false, "Server is not responding. Make sure it's running (npm run start)"
+    end
+    
     local success, result = pcall(function()
         return HttpService:RequestAsync({
             Url = config.apiUrl .. config.apiEndpoint,
@@ -173,10 +191,23 @@ local function requestAIGeneration(prompt)
         })
     end)
     
-    if success and result.Success then
-        return true, HttpService:JSONDecode(result.Body)
+    if success then
+        if result.Success then
+            if config.debug then
+                print("[AI Plugin] Request successful")
+            end
+            return true, HttpService:JSONDecode(result.Body)
+        else
+            if config.debug then
+                print("[AI Plugin] Server returned error:", result.StatusCode, result.Body)
+            end
+            return false, "Server error: " .. (result.StatusCode or "unknown") .. " - " .. (result.Body or "")
+        end
     else
-        return false, "Failed to connect to AI service"
+        if config.debug then
+            print("[AI Plugin] Request failed:", result)
+        end
+        return false, "Failed to connect to AI service: " .. tostring(result)
     end
 end
 
@@ -274,14 +305,35 @@ submitButton.MouseButton1Click:Connect(function()
     setLoadingState(true)
     addMessage("Generating code for: " .. prompt, false)
     
-    local success, response = requestAIGeneration(prompt)
+    -- Wrapped in pcall to catch any unexpected errors
+    local ok, successOrErr, response = pcall(function()
+        return requestAIGeneration(prompt)
+    end)
     
-    if success then
-        applyGeneratedCode(response.data)
-        promptBox.Text = ""
-        addMessage("Code generated and applied successfully!", false)
-    else
+    if not ok then
+        addMessage("Plugin error: " .. tostring(successOrErr), true)
+        if config.debug then
+            warn("[AI Plugin] Error:", successOrErr)
+        end
+    elseif successOrErr then -- success case
+        local ok2, err2 = pcall(function()
+            applyGeneratedCode(response.data)
+        end)
+        
+        if ok2 then
+            promptBox.Text = ""
+            addMessage("Code generated and applied successfully!", false)
+        else
+            addMessage("Error applying changes: " .. tostring(err2), true)
+            if config.debug then
+                warn("[AI Plugin] Error applying changes:", err2)
+            end
+        end
+    else -- API error case
         addMessage("Error: " .. tostring(response), true)
+        if config.debug then
+            warn("[AI Plugin] API Error:", response)
+        end
     end
     
     setLoadingState(false)
