@@ -3,3 +3,9 @@
 {"level":"warn","message":"Port 3000 is busy, trying 30001...","timestamp":"2025-09-21T09:27:11.053Z"}
 {"level":"info","message":"Server is running on port 30001","timestamp":"2025-09-21T09:27:11.063Z"}
 {"level":"info","message":"Server is running on port 3000","timestamp":"2025-09-21T09:33:23.995Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:00:24.453Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:00:25.888Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:00:31.579Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:00:32.179Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:00:42.160Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:00:42.793Z"}
