@@ -13,7 +13,7 @@ const checkpointRoutes = require('./routes/checkpoint');
 const creditRoutes = require('./routes/credits');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 // Trust proxy for Replit environment (configure for specific proxy setup)
 app.set('trust proxy', 'loopback');
