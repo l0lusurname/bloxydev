@@ -39,3 +39,7 @@
 {"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:37.619Z"}
 {"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:22:52.109Z"}
 {"level":"info","message":"GET /","timestamp":"2025-09-21T17:25:22.739Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:48:43.867Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:48:44.393Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T17:48:57.634Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:48:58.140Z"}
