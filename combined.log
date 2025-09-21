@@ -110,3 +110,6 @@
 {"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:48:45.064Z"}
 {"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:48:46.523Z"}
 {"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:51:15.167Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:56:29.045Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T19:06:34.051Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T19:06:36.900Z"}
