@@ -42,6 +42,17 @@ app.get('/health', (req, res) => {
 });
 
 // Start server
-app.listen(port, () => {
-    logger.info(`Server is running on port ${port}`);
-});
+const server = app.listen(port)
+    .on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            logger.warn(`Port ${port} is busy, trying ${port + 1}...`);
+            server.listen(port + 1);
+        } else {
+            logger.error('Server error:', err);
+            process.exit(1);
+        }
+    })
+    .on('listening', () => {
+        const address = server.address();
+        logger.info(`Server is running on port ${address.port}`);
+    });
