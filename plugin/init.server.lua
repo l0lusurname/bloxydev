@@ -1,8 +1,13 @@
--- AI-- Configuration
+-- Get required services
+local HttpService = game:GetService("HttpService")
+local Selection = game:GetService("Selection")
+
+-- AI Assistant Configuration
 local config = {
     apiUrl = "https://bloxydev-production.up.railway.app", -- Railway deployment URL
     apiEndpoint = "/api/ai/generate",
     testEndpoint = "/api/test", -- Test endpoint
+    apiKey = "5b3772646b676545a1c26f282d0126d9e8c59e827d69881cff0979825e0590b2", -- API key matching Railway AI_GATEWAY_KEY
     debug = true -- Enable debug logging
 }
 
@@ -13,7 +18,13 @@ spawn(function()
         
         -- Try test endpoint first
         local success, result = pcall(function()
-            return HttpService:GetAsync(config.apiUrl .. config.testEndpoint)
+            return HttpService:RequestAsync({
+                Url = config.apiUrl .. config.testEndpoint,
+                Method = "GET",
+                Headers = {
+                    ["Authorization"] = "Bearer " .. config.apiKey
+                }
+            }).Body
         end)
         
         if success then
@@ -25,7 +36,13 @@ spawn(function()
             
             -- Try health check
             local healthSuccess, healthResult = pcall(function()
-                return HttpService:GetAsync(config.apiUrl .. "/health")
+                return HttpService:RequestAsync({
+                    Url = config.apiUrl .. "/health",
+                    Method = "GET",
+                    Headers = {
+                        ["Authorization"] = "Bearer " .. config.apiKey
+                    }
+                }).Body
             end)
             
             if healthSuccess then
@@ -36,22 +53,15 @@ spawn(function()
             end
         end
     end
-end)tant Plugin for Roblox Studio
-local PluginName = "AI Dev Assistant"
-local HttpService = game:GetService("HttpService")
-local Selection = game:GetService("Selection")
+end)
 
--- Configuration
-local config = {
-    apiUrl = "bloxydev-production.up.railway.app", -- Railway deployment URL
-    apiEndpoint = "/api/ai/generate",
-    debug = true -- Enable debug logging
-}
+-- AI Assistant Plugin for Roblox Studio
+local PluginName = "AI Dev Assistant"
 
 -- Create the plugin toolbar and button
 local toolbar = plugin:CreateToolbar(PluginName)
 local toggleButton = toolbar:CreateButton(
-    "AI Assistant 2.0",
+    "AI Assistant 1.0 [BETA]",
     "Open AI Assistant",
     "rbxassetid://4458901886" -- Default script icon
 )
@@ -207,7 +217,13 @@ local function requestAIGeneration(prompt)
     
     -- Test server connection first
     local testSuccess, testResult = pcall(function()
-        return HttpService:GetAsync(config.apiUrl .. "/health")
+        return HttpService:RequestAsync({
+            Url = config.apiUrl .. "/health",
+            Method = "GET",
+            Headers = {
+                ["Authorization"] = "Bearer " .. config.apiKey
+            }
+        }).Body
     end)
     
     if not testSuccess then
@@ -223,7 +239,8 @@ local function requestAIGeneration(prompt)
             Url = config.apiUrl .. config.apiEndpoint,
             Method = "POST",
             Headers = {
-                ["Content-Type"] = "application/json"
+                ["Content-Type"] = "application/json",
+                ["Authorization"] = "Bearer " .. config.apiKey
             },
             Body = HttpService:JSONEncode(data)
         })
