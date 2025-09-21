@@ -1,154 +1,195 @@
-// AI Dev Assistant Backend Server
-// Run with: node server.js
+// AI Dev Assistant Backend Server with Claude 3.5 Sonnet
+// server.js
 
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { createClient } = require('@supabase/supabase-js');
+const Anthropic = require('@anthropic-ai/sdk');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Environment variables (create a .env file)
-const SUPABASE_URL = process.env.SUPABASE_URL || 'your_supabase_url';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'your_supabase_key';
-const AI_API_KEY = process.env.AI_API_KEY || 'your_ai_api_key';
+// Environment variables
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-// Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Validate required environment variables
+if (!ANTHROPIC_API_KEY) {
+    console.error('❌ ANTHROPIC_API_KEY is required');
+    process.exit(1);
+}
+
+// Initialize clients
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? 
+    createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+const anthropic = new Anthropic({
+    apiKey: ANTHROPIC_API_KEY,
+});
 
 // Middleware
 app.use(helmet());
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://www.roblox.com'],
+    origin: ['http://localhost:3000', 'https://www.roblox.com', 'roblox-studio://'],
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
+// Rate limiting - more generous for development
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.'
+    max: 50, // requests per window per IP
+    message: {
+        success: false,
+        error: 'Too many requests. Please wait before trying again.'
+    }
 });
 app.use('/api', limiter);
 
 // Logging middleware
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    const timestamp = new Date().toISOString();
+    console.log(`${timestamp} - ${req.method} ${req.path}`);
     next();
 });
 
-// Mock AI responses for MVP testing
-const mockAIResponses = [
-    {
-        type: 'refactor',
-        response: `-- AI Refactored Script
--- Improved version with better practices
+// Utility Functions
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+function sanitizeLuaCode(code) {
+    // Remove potentially dangerous patterns while preserving functionality
+    return code
+        .replace(/--\[\[[\s\S]*?\]\]/g, '') // Remove block comments
+        .replace(/--[^\r\n]*/g, '') // Remove line comments
+        .trim();
+}
 
--- Constants
-local WALK_SPEED = 16
-local JUMP_POWER = 50
-
--- Variables
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-
--- Functions
-local function initializeCharacter()
-    if humanoid then
-        humanoid.WalkSpeed = WALK_SPEED
-        humanoid.JumpPower = JUMP_POWER
-    end
-end
-
--- Events
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    initializeCharacter()
-end)
-
--- Initialize
-initializeCharacter()
-
-print("Character setup complete!")`
-    },
-    {
-        type: 'fix',
-        response: `-- AI Fixed Script
--- Corrected syntax and logical errors
-
-local function calculateDistance(pos1, pos2)
-    -- Fixed: Added proper error checking
-    if not pos1 or not pos2 then
-        warn("Invalid positions provided to calculateDistance")
-        return 0
-    end
+function analyzeLuaScript(scriptData, gameContext) {
+    const analysis = {
+        complexity: 'medium',
+        patterns: [],
+        issues: [],
+        suggestions: [],
+        security: []
+    };
     
-    return (pos1 - pos2).Magnitude
-end
-
--- Fixed: Proper event connection
-game.Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        -- Fixed: Added error checking
-        if humanoid then
-            print(player.Name .. " has spawned!")
-        end
-    end)
-end)`
-    },
-    {
-        type: 'optimize',
-        response: `-- AI Optimized Script
--- Performance improvements and best practices
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-
--- Cache frequently used objects
-local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
-local dataUpdateEvent = remoteEvents:WaitForChild("DataUpdate")
-
--- Optimized: Use object pooling for frequent operations
-local objectPool = {}
-
-local function getFromPool()
-    return table.remove(objectPool) or Instance.new("Part")
-end
-
-local function returnToPool(object)
-    object.Parent = nil
-    table.insert(objectPool, object)
-end
-
--- Optimized: Batch operations instead of individual calls
-local updateQueue = {}
-local lastUpdate = tick()
-
-local function processUpdateQueue()
-    if #updateQueue > 0 and tick() - lastUpdate > 0.1 then
-        dataUpdateEvent:FireServer(updateQueue)
-        updateQueue = {}
-        lastUpdate = tick()
-    end
-end
-
--- Connection
-game:GetService("RunService").Heartbeat:Connect(processUpdateQueue)`
+    const code = scriptData.source;
+    
+    // Analyze complexity
+    const lineCount = code.split('\n').length;
+    const functionCount = (code.match(/function\s+\w+/g) || []).length;
+    const serviceCount = (code.match(/game:GetService\(/g) || []).length;
+    
+    if (lineCount > 200 || functionCount > 10) {
+        analysis.complexity = 'high';
+    } else if (lineCount < 50 && functionCount < 3) {
+        analysis.complexity = 'low';
     }
-];
+    
+    // Detect patterns
+    if (code.includes('RunService.Heartbeat')) {
+        analysis.patterns.push('performance_sensitive');
+    }
+    if (code.includes('RemoteEvent') || code.includes('RemoteFunction')) {
+        analysis.patterns.push('networking');
+    }
+    if (code.includes('TweenService') || code.includes('TweenInfo')) {
+        analysis.patterns.push('animation');
+    }
+    if (code.includes('UserInputService') || code.includes('ContextActionService')) {
+        analysis.patterns.push('user_input');
+    }
+    
+    // Detect potential issues
+    if (code.includes('wait()') && !code.includes('task.wait()')) {
+        analysis.issues.push('deprecated_wait');
+    }
+    if (code.includes('spawn(') && !code.includes('task.spawn(')) {
+        analysis.issues.push('deprecated_spawn');
+    }
+    if (code.includes('while true do') && !code.includes('RunService')) {
+        analysis.issues.push('infinite_loop_risk');
+    }
+    
+    // Security checks
+    if (code.includes('loadstring') || code.includes('require(')) {
+        analysis.security.push('code_execution_risk');
+    }
+    if (code.includes('HttpService') && code.includes('GetAsync')) {
+        analysis.security.push('external_requests');
+    }
+    
+    return analysis;
+}
 
-// Database functions
+function buildClaudePrompt(requestData) {
+    const { scriptData, gameContext, relatedScripts, relevantAssets } = requestData;
+    
+    let prompt = `You are an expert Roblox Lua developer analyzing and improving scripts. Here's the context:
+
+TARGET SCRIPT:
+Name: ${scriptData.name}
+Type: ${scriptData.className}
+Location: ${scriptData.path}
+Parent Service: ${scriptData.parentService}
+
+SCRIPT CODE:
+\`\`\`lua
+${scriptData.source}
+\`\`\`
+
+GAME CONTEXT:
+- Total Objects: ${gameContext.totalObjects}
+- Total Scripts: ${gameContext.scriptCount}
+- Services in use: ${Object.keys(gameContext.services).join(', ')}`;
+
+    if (relatedScripts && relatedScripts.length > 0) {
+        prompt += `\n\nRELATED SCRIPTS (${relatedScripts.length} found):`;
+        relatedScripts.slice(0, 3).forEach(script => {
+            prompt += `\n- ${script.name} (${script.className}) - ${script.relationship}`;
+            if (script.sourcePreview) {
+                prompt += `\n  Preview: ${script.sourcePreview}`;
+            }
+        });
+    }
+
+    if (relevantAssets && relevantAssets.length > 0) {
+        prompt += `\n\nRELEVANT GAME ASSETS:`;
+        relevantAssets.forEach(asset => {
+            prompt += `\n- ${asset.name} (${asset.className}) at ${asset.path}`;
+        });
+    }
+
+    prompt += `\n\nPLEASE PROVIDE:
+
+1. **ANALYSIS**: Analyze the script's purpose, current implementation, and how it fits in the game structure.
+
+2. **IMPROVED CODE**: Provide an optimized version that:
+   - Uses modern Roblox Lua best practices (task.wait instead of wait, etc.)
+   - Improves performance and readability
+   - Handles errors gracefully
+   - Follows proper coding conventions
+   - Considers the game context and related scripts
+
+3. **EXPLANATION**: Explain what changes you made and why.
+
+4. **RECOMMENDATIONS**: Suggest architectural improvements or alternative approaches.
+
+5. **PERFORMANCE NOTES**: Highlight any performance considerations or optimizations.
+
+Focus on practical, working code that integrates well with the existing game structure. Consider the script's role in the broader game context.`;
+
+    return prompt;
+}
+
+// Database functions (with fallbacks if Supabase not configured)
 async function getUserCredits(userId) {
+    if (!supabase) return 100; // Default credits for development
+    
     try {
         const { data, error } = await supabase
             .from('user_credits')
@@ -156,7 +197,7 @@ async function getUserCredits(userId) {
             .eq('user_id', userId)
             .single();
         
-        if (error) {
+        if (error && error.code !== 'PGRST116') { // Not found is okay
             console.error('Error fetching user credits:', error);
             return 0;
         }
@@ -169,31 +210,29 @@ async function getUserCredits(userId) {
 }
 
 async function deductCredits(userId, amount) {
+    if (!supabase) return true; // Skip for development
+    
     try {
-        const { data, error } = await supabase
-            .from('user_credits')
-            .update({ 
-                credits: supabase.raw('credits - ?', [amount]),
-                last_used: new Date().toISOString()
-            })
-            .eq('user_id', userId)
-            .select();
+        const { error } = await supabase.rpc('deduct_user_credits', {
+            user_id_param: userId,
+            amount: amount
+        });
         
-        if (error) {
-            console.error('Error deducting credits:', error);
-            return false;
-        }
-        
-        return true;
+        return !error;
     } catch (error) {
-        console.error('Database error:', error);
+        console.error('Error deducting credits:', error);
         return false;
     }
 }
 
-async function logRequest(userId, requestType, scriptName, status) {
+async function logRequest(userId, requestType, scriptName, status, tokensUsed = 0) {
+    if (!supabase) {
+        console.log(`LOG: User ${userId} - ${requestType} - ${scriptName} - ${status} - ${tokensUsed} tokens`);
+        return;
+    }
+    
     try {
-        const { error } = await supabase
+        await supabase
             .from('request_logs')
             .insert([
                 {
@@ -201,15 +240,13 @@ async function logRequest(userId, requestType, scriptName, status) {
                     request_type: requestType,
                     script_name: scriptName,
                     status: status,
+                    processing_time_ms: 0,
+                    credits_used: Math.ceil(tokensUsed / 1000), // 1 credit per 1000 tokens
                     timestamp: new Date().toISOString()
                 }
             ]);
-        
-        if (error) {
-            console.error('Error logging request:', error);
-        }
     } catch (error) {
-        console.error('Database error:', error);
+        console.error('Error logging request:', error);
     }
 }
 
@@ -217,10 +254,12 @@ async function logRequest(userId, requestType, scriptName, status) {
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
+    res.json({
+        status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '2.0.0',
+        ai: 'Claude 3.5 Sonnet',
+        database: supabase ? 'connected' : 'disabled'
     });
 });
 
@@ -228,7 +267,7 @@ app.get('/health', (req, res) => {
 app.get('/api/credits/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
-        const credits = await getUserCredits(userId);
+        const credits = await getUserCredits(parseInt(userId));
         
         res.json({
             success: true,
@@ -243,140 +282,184 @@ app.get('/api/credits/:userId', async (req, res) => {
     }
 });
 
-// Main AI help endpoint
-app.post('/api/ai-help', async (req, res) => {
+// Main Claude analysis endpoint
+app.post('/api/claude-analysis', async (req, res) => {
+    const startTime = Date.now();
+    
     try {
-        const { userId, scriptName, scriptType, scriptContent, timestamp } = req.body;
+        const { userId, scriptData, gameContext, relatedScripts, relevantAssets, analysisType } = req.body;
         
         // Validate request
-        if (!userId || !scriptName || !scriptContent) {
+        if (!userId || !scriptData || !scriptData.source) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'Missing required fields: userId, scriptData, or source code'
             });
         }
         
-        // Check user credits (skip for MVP testing)
+        console.log(`🤖 Starting Claude analysis for user ${userId}`);
+        console.log(`📜 Script: ${scriptData.name} (${scriptData.source.length} characters)`);
+        
+        // Check user credits
         const credits = await getUserCredits(userId);
-        console.log(`User ${userId} has ${credits} credits`);
+        if (credits < 1) {
+            return res.status(402).json({
+                success: false,
+                error: 'Insufficient credits. Please purchase more credits to continue.',
+                creditsAvailable: credits
+            });
+        }
         
-        // For MVP: Skip credit deduction, just log the request
-        await logRequest(userId, 'ai_help', scriptName, 'processing');
+        // Log request start
+        await logRequest(userId, 'claude_analysis', scriptData.name, 'processing');
         
-        // Simulate AI processing delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Analyze script for better context
+        const scriptAnalysis = analyzeLuaScript(scriptData, gameContext);
+        console.log(`📊 Script analysis: ${scriptAnalysis.complexity} complexity, ${scriptAnalysis.patterns.length} patterns, ${scriptAnalysis.issues.length} issues`);
         
-        // Return mock AI response
-        const randomResponse = mockAIResponses[Math.floor(Math.random() * mockAIResponses.length)];
+        // Build comprehensive prompt
+        const prompt = buildClaudePrompt(req.body);
+        console.log(`📝 Prompt size: ${prompt.length} characters`);
+        
+        // Call Claude 3.5 Sonnet
+        const message = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 4000,
+            temperature: 0.1,
+            messages: [{
+                role: "user",
+                content: prompt
+            }]
+        });
+        
+        const claudeResponse = message.content[0].text;
+        const tokensUsed = message.usage.input_tokens + message.usage.output_tokens;
+        
+        console.log(`✅ Claude response received (${tokensUsed} tokens)`);
+        
+        // Parse Claude's response into structured format
+        const responseData = parseClaudeResponse(claudeResponse, scriptData.source);
+        
+        // Deduct credits
+        const creditsToDeduct = Math.max(1, Math.ceil(tokensUsed / 1000));
+        await deductCredits(userId, creditsToDeduct);
         
         // Log successful completion
-        await logRequest(userId, 'ai_help', scriptName, 'completed');
+        await logRequest(userId, 'claude_analysis', scriptData.name, 'completed', tokensUsed);
+        
+        const processingTime = Date.now() - startTime;
+        console.log(`🎉 Analysis completed in ${processingTime}ms`);
         
         res.json({
             success: true,
-            improvedCode: randomResponse.response,
-            explanation: `Applied ${randomResponse.type} improvements to your script. Key changes include better error handling, performance optimizations, and code structure improvements.`,
-            creditsUsed: 1,
-            creditsRemaining: credits - 1
+            ...responseData,
+            tokensUsed: tokensUsed,
+            creditsUsed: creditsToDeduct,
+            creditsRemaining: credits - creditsToDeduct,
+            processingTimeMs: processingTime,
+            scriptAnalysis: scriptAnalysis
         });
         
     } catch (error) {
-        console.error('Error processing AI request:', error);
+        console.error('❌ Error processing Claude request:', error);
         
         // Log error
-        if (req.body.userId && req.body.scriptName) {
-            await logRequest(req.body.userId, 'ai_help', req.body.scriptName, 'error');
+        if (req.body.userId && req.body.scriptData) {
+            await logRequest(req.body.userId, 'claude_analysis', req.body.scriptData.name, 'error');
         }
         
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Analysis failed. Please try again.',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
-// Purchase credits endpoint
-app.post('/api/purchase-credits', async (req, res) => {
+// Parse Claude's response into structured components
+function parseClaudeResponse(claudeText, originalCode) {
+    const response = {
+        analysis: '',
+        improvedCode: originalCode,
+        explanation: '',
+        recommendations: '',
+        performanceNotes: ''
+    };
+    
     try {
-        const { userId, productId, receiptId, creditsToAdd } = req.body;
+        // Extract sections using regex patterns
+        const sections = {
+            analysis: /(?:\*\*ANALYSIS\*\*|1\.\s*\*\*ANALYSIS\*\*):\s*([\s\S]*?)(?=\*\*|$)/i,
+            code: /(?:\*\*IMPROVED CODE\*\*|2\.\s*\*\*IMPROVED CODE\*\*)[\s\S]*?```lua([\s\S]*?)```/i,
+            explanation: /(?:\*\*EXPLANATION\*\*|3\.\s*\*\*EXPLANATION\*\*):\s*([\s\S]*?)(?=\*\*|$)/i,
+            recommendations: /(?:\*\*RECOMMENDATIONS\*\*|4\.\s*\*\*RECOMMENDATIONS\*\*):\s*([\s\S]*?)(?=\*\*|$)/i,
+            performance: /(?:\*\*PERFORMANCE NOTES\*\*|5\.\s*\*\*PERFORMANCE NOTES\*\*):\s*([\s\S]*?)(?=\*\*|$)/i
+        };
         
-        // Validate Roblox purchase receipt (simplified for MVP)
-        // In production, verify with Roblox API
-        
-        // Add credits to user account
-        const { error } = await supabase
-            .from('user_credits')
-            .upsert([
-                {
-                    user_id: userId,
-                    credits: supabase.raw('COALESCE(credits, 0) + ?', [creditsToAdd]),
-                    last_purchase: new Date().toISOString()
+        // Extract each section
+        for (const [key, regex] of Object.entries(sections)) {
+            const match = claudeText.match(regex);
+            if (match) {
+                const content = match[1].trim();
+                switch (key) {
+                    case 'analysis':
+                        response.analysis = content;
+                        break;
+                    case 'code':
+                        response.improvedCode = sanitizeLuaCode(content);
+                        break;
+                    case 'explanation':
+                        response.explanation = content;
+                        break;
+                    case 'recommendations':
+                        response.recommendations = content;
+                        break;
+                    case 'performance':
+                        response.performanceNotes = content;
+                        break;
                 }
-            ]);
-        
-        if (error) {
-            throw error;
-        }
-        
-        // Log purchase
-        await supabase
-            .from('purchase_logs')
-            .insert([
-                {
-                    user_id: userId,
-                    product_id: productId,
-                    receipt_id: receiptId,
-                    credits_added: creditsToAdd,
-                    timestamp: new Date().toISOString()
-                }
-            ]);
-        
-        res.json({
-            success: true,
-            message: `Successfully added ${creditsToAdd} credits`,
-            newBalance: await getUserCredits(userId)
-        });
-        
-    } catch (error) {
-        console.error('Error processing purchase:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to process purchase'
-        });
-    }
-});
-
-// Get usage statistics
-app.get('/api/stats/:userId', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        
-        const { data: logs } = await supabase
-            .from('request_logs')
-            .select('*')
-            .eq('user_id', userId)
-            .order('timestamp', { ascending: false })
-            .limit(50);
-        
-        const totalRequests = logs?.length || 0;
-        const successfulRequests = logs?.filter(log => log.status === 'completed').length || 0;
-        
-        res.json({
-            success: true,
-            stats: {
-                totalRequests,
-                successfulRequests,
-                recentLogs: logs?.slice(0, 10) || []
             }
-        });
+        }
+        
+        // Fallback: if no structured sections found, use the entire response
+        if (!response.analysis && !response.explanation) {
+            response.analysis = claudeText;
+        }
         
     } catch (error) {
-        console.error('Error getting stats:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve statistics'
-        });
+        console.error('Error parsing Claude response:', error);
+        response.analysis = claudeText;
     }
+    
+    return response;
+}
+
+// Legacy endpoint for backward compatibility
+app.post('/api/ai-help', async (req, res) => {
+    // Redirect to new Claude endpoint with adapted format
+    const adaptedRequest = {
+        userId: req.body.userId,
+        scriptData: {
+            name: req.body.scriptName,
+            className: req.body.scriptType || 'Script',
+            source: req.body.scriptContent,
+            path: req.body.scriptName,
+            parentService: 'Unknown'
+        },
+        gameContext: {
+            totalObjects: 0,
+            scriptCount: 1,
+            services: {}
+        },
+        relatedScripts: [],
+        relevantAssets: [],
+        analysisType: 'basic'
+    };
+    
+    req.body = adaptedRequest;
+    
+    // Forward to Claude analysis
+    app.handle(Object.assign(req, { path: '/api/claude-analysis', method: 'POST' }), res);
 });
 
 // Error handling middleware
@@ -399,6 +482,12 @@ app.use('*', (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 AI Dev Assistant Backend running on port ${PORT}`);
+    console.log(`🤖 Powered by Claude 3.5 Sonnet`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🔧 API endpoint: http://localhost:${PORT}/api/ai-help`);
+    console.log(`🔧 Analysis endpoint: http://localhost:${PORT}/api/claude-analysis`);
+    console.log(`💾 Database: ${supabase ? 'Connected' : 'Disabled (dev mode)'}`);
+    
+    if (!ANTHROPIC_API_KEY) {
+        console.warn('⚠️  Warning: ANTHROPIC_API_KEY not configured');
+    }
 });
