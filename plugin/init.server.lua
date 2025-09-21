@@ -5,7 +5,7 @@ local Selection = game:GetService("Selection")
 
 -- Configuration
 local config = {
-    apiUrl = "https://bloxydevai.vercel.app", -- Your deployed API URL
+    apiUrl = "http://localhost:3000", -- Local development server
     apiEndpoint = "/api/ai/generate",
 }
 
@@ -91,6 +91,29 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 6)
 corner.Parent = submitButton
 
+-- Load utilities module (safe require). Utilities expect the UI objects (scrollFrame, listLayout, promptBox, submitButton)
+-- to exist when their functions are called, so require after UI creation.
+local utilities
+pcall(function()
+    -- Try common require paths used in plugin structure
+    if script and script.Parent and script.Parent:FindFirstChild("utilities") then
+        utilities = require(script.Parent:FindFirstChild("utilities"))
+    elseif plugin and plugin:FindFirstChild("utilities") then
+        utilities = require(plugin:FindFirstChild("utilities"))
+    end
+end)
+
+-- Safe local bindings with fallbacks to prevent nil calls
+local addMessage = (utilities and utilities.addMessage) or function(msg, isError)
+    if isError then
+        warn("AI Plugin - ", tostring(msg))
+    else
+        print("AI Plugin - ", tostring(msg))
+    end
+end
+
+local setLoadingState = (utilities and utilities.setLoadingState) or function(_) end
+
 -- Function to get the game tree
 local function getGameTree()
     local function serializeInstance(instance)
@@ -157,22 +180,85 @@ local function requestAIGeneration(prompt)
     end
 end
 
+-- Function to find or create path
+local function findOrCreatePath(startInstance, pathArray)
+    local current = startInstance
+    for _, name in ipairs(pathArray) do
+        local next = current:FindFirstChild(name)
+        if not next then
+            next = Instance.new("Folder")
+            next.Name = name
+            next.Parent = current
+        end
+        current = next
+    end
+    return current
+end
+
+-- Function to set instance properties
+local function setInstanceProperties(instance, properties)
+    for propName, value in pairs(properties) do
+        -- Handle vector3 properties
+        if type(value) == "table" and #value == 3 then
+            if propName:match("Color") then
+                instance[propName] = Color3.new(unpack(value))
+            else
+                instance[propName] = Vector3.new(unpack(value))
+            end
+        -- Handle CFrame properties
+        elseif type(value) == "table" and #value == 12 then
+            instance[propName] = CFrame.new(unpack(value))
+        else
+            -- Direct property assignment for other types
+            instance[propName] = value
+        end
+    end
+end
+
 -- Function to apply generated code
 local function applyGeneratedCode(codeData)
-    if not codeData or not codeData.scripts then return end
+    if not codeData then return end
     
-    for _, scriptData in ipairs(codeData.scripts) do
-        local targetParent = game
-        for _, pathPart in ipairs(scriptData.path) do
-            targetParent = targetParent:FindFirstChild(pathPart)
-            if not targetParent then break end
+    -- Create or modify scripts
+    if codeData.scripts then
+        for _, scriptData in ipairs(codeData.scripts) do
+            local targetParent = findOrCreatePath(game, scriptData.path)
+            if targetParent then
+                local newScript = Instance.new(scriptData.type)
+                newScript.Name = scriptData.name
+                newScript.Source = scriptData.source
+                newScript.Parent = targetParent
+            end
         end
-        
-        if targetParent then
-            local newScript = Instance.new(scriptData.type)
-            newScript.Name = scriptData.name
-            newScript.Source = scriptData.source
-            newScript.Parent = targetParent
+    end
+    
+    -- Create new instances
+    if codeData.instances then
+        for _, instanceData in ipairs(codeData.instances) do
+            local targetParent = findOrCreatePath(game, instanceData.path)
+            if targetParent then
+                local newInstance = Instance.new(instanceData.className)
+                newInstance.Name = instanceData.name
+                if instanceData.properties then
+                    setInstanceProperties(newInstance, instanceData.properties)
+                end
+                newInstance.Parent = targetParent
+            end
+        end
+    end
+    
+    -- Modify existing instances
+    if codeData.modifications then
+        for _, modData in ipairs(codeData.modifications) do
+            local instance = game
+            for _, pathPart in ipairs(modData.path) do
+                instance = instance:FindFirstChild(pathPart)
+                if not instance then break end
+            end
+            
+            if instance and modData.properties then
+                setInstanceProperties(instance, modData.properties)
+            end
         end
     end
 end

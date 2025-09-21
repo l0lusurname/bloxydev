@@ -1,28 +1,61 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 
-const aiGatewayUrl = process.env.AI_GATEWAY_URL;
-const aiGatewayKey = process.env.AI_GATEWAY_KEY;
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 
 const generateLuaCode = async (prompt, gameTree, requestSize) => {
     try {
-        // Call your AI gateway
-        const response = await axios.post(aiGatewayUrl, {
-            prompt: formatPrompt(prompt, gameTree),
+        const response = await axios.post(DEEPSEEK_API_URL, {
+            model: "deepseek-coder-33b-instruct",
+            messages: [{
+                role: "system",
+                content: `You are an expert Roblox Lua programmer. Generate code based on the user's request and game context.
+                Your responses should be in valid JSON format with the following structure:
+                {
+                    "scripts": [{
+                        "type": "Script|LocalScript|ModuleScript",
+                        "name": "ScriptName",
+                        "path": ["Service", "Folder", "etc"],
+                        "source": "-- Lua code here"
+                    }],
+                    "instances": [{
+                        "className": "Part|Model|Folder|etc",
+                        "name": "InstanceName",
+                        "path": ["Parent1", "Parent2"],
+                        "properties": {
+                            "Size": [1, 2, 3],
+                            "Position": [0, 5, 0],
+                            "Color": [1, 1, 1],
+                            ... other properties
+                        }
+                    }],
+                    "modifications": [{
+                        "path": ["Workspace", "ExistingModel", "Part"],
+                        "properties": {
+                            "Anchored": true,
+                            ... properties to change
+                        }
+                    }]
+                }`
+            }, {
+                role: "user",
+                content: formatPrompt(prompt, gameTree)
+            }],
+            temperature: 0.7,
             max_tokens: getMaxTokens(requestSize),
-            temperature: 0.7
+            response_format: { type: "json_object" }
         }, {
             headers: {
-                'Authorization': `Bearer ${aiGatewayKey}`,
+                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
 
         // Process the response into a format the plugin can use
-        return processAIResponse(response.data, gameTree);
+        return processAIResponse(response.data.choices[0].message.content, gameTree);
     } catch (error) {
-        logger.error('Error calling AI gateway:', error);
-        throw new Error('Failed to generate code');
+        logger.error('Error calling Deepseek:', error);
+        throw new Error('Failed to generate code: ' + error.message);
     }
 };
 
