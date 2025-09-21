@@ -1,4 +1,4 @@
-ma-- Get required services
+-- Get required services
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")
 
