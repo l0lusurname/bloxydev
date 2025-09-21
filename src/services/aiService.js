@@ -253,11 +253,21 @@ const fixPropertyTypes = (properties) => {
             if (value.length === 2) {
                 // GUI Position - convert to UDim2 format
                 fixedProps[key] = {
-                    UDim2: value.length === 4 ? value : [0, value[0] || 0, 0, value[1] || 0]
+                    type: "UDim2",
+                    value: [0, value[0] || 0, 0, value[1] || 0]
+                };
+            } else if (value.length === 4) {
+                // Full UDim2 format [scaleX, offsetX, scaleY, offsetY]
+                fixedProps[key] = {
+                    type: "UDim2",
+                    value: value
                 };
             } else if (value.length === 3) {
                 // 3D Position - Vector3
-                fixedProps[key] = { Vector3: value };
+                fixedProps[key] = {
+                    type: "Vector3",
+                    value: value
+                };
             }
         }
         
@@ -265,26 +275,80 @@ const fixPropertyTypes = (properties) => {
         if (key === 'Size' && Array.isArray(value)) {
             if (value.length === 2) {
                 fixedProps[key] = {
-                    UDim2: value.length === 4 ? value : [0, value[0] || 100, 0, value[1] || 100]
+                    type: "UDim2",
+                    value: [0, value[0] || 100, 0, value[1] || 100]
+                };
+            } else if (value.length === 4) {
+                // Full UDim2 format [scaleX, offsetX, scaleY, offsetY]
+                fixedProps[key] = {
+                    type: "UDim2",
+                    value: value
                 };
             } else if (value.length === 3) {
-                fixedProps[key] = { Vector3: value };
+                fixedProps[key] = {
+                    type: "Vector3",
+                    value: value
+                };
             }
         }
         
-        // Fix Color3 properties
-        if ((key === 'Color' || key.includes('Color')) && Array.isArray(value) && value.length === 3) {
-            fixedProps[key] = { Color3: value };
+        // Fix Color3 properties - TextColor3, BackgroundColor3, etc.
+        if ((key === 'Color' || key.includes('Color') || key.endsWith('Color3')) && Array.isArray(value)) {
+            if (value.length === 3) {
+                // Detect if values are 0-1 range or 0-255 range
+                const isNormalized = value.every(v => v >= 0 && v <= 1);
+                const rgbValues = isNormalized 
+                    ? value.map(v => Math.floor(v * 255))
+                    : value.map(v => Math.max(0, Math.min(255, Math.floor(v))));
+                
+                // Return structured format for plugin to handle
+                fixedProps[key] = {
+                    type: "Color3",
+                    value: rgbValues
+                };
+            }
         }
         
-        // Fix Vector3 properties (Position, Size for 3D objects, etc.)
-        if ((key === 'Velocity' || key === 'AngularVelocity') && Array.isArray(value) && value.length === 3) {
-            fixedProps[key] = { Vector3: value };
+        // Fix Vector3 properties (Velocity, AngularVelocity, etc.)
+        if ((key === 'Velocity' || key === 'AngularVelocity' || key.includes('Vector')) && Array.isArray(value) && value.length === 3) {
+            fixedProps[key] = {
+                type: "Vector3",
+                value: value
+            };
         }
         
         // Fix CFrame properties
         if (key === 'CFrame' && Array.isArray(value)) {
-            fixedProps[key] = { CFrame: value };
+            if (value.length === 3) {
+                // Position only
+                fixedProps[key] = {
+                    type: "CFrame",
+                    value: value
+                };
+            } else if (value.length === 12) {
+                // Full CFrame with position and rotation matrix
+                fixedProps[key] = {
+                    type: "CFrame",
+                    value: value
+                };
+            } else if (value.length === 6) {
+                // Position + lookVector (simplified)
+                fixedProps[key] = {
+                    type: "CFrame",
+                    value: value
+                };
+            }
+        }
+        
+        // Fix common boolean properties that might come as strings
+        if (typeof value === 'string' && (value.toLowerCase() === 'true' || value.toLowerCase() === 'false')) {
+            fixedProps[key] = value.toLowerCase() === 'true';
+        }
+        
+        // Fix Enum properties (keep as strings for Lua enums)
+        if (key.includes('Enum') || key === 'Font' || key === 'TextScaled' || key === 'BorderMode') {
+            // Keep enum values as strings, they'll be converted in Lua
+            fixedProps[key] = value;
         }
     });
     
@@ -296,30 +360,49 @@ const processAIRequest = async (message) => {
     try {
         const lowerMessage = message.toLowerCase();
         
+        // Check if we have API credentials
+        const hasApiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENROUTER_API_KEY;
+        if (!hasApiKey) {
+            return "I need API credentials to generate code and perform operations. Please configure DEEPSEEK_API_KEY or OPENROUTER_API_KEY in your environment.";
+        }
+        
         // Analyze the message intent
         let intent = 'general';
         let response = '';
+        let operationResult = null;
         
         if (lowerMessage.includes('create') || lowerMessage.includes('make') || lowerMessage.includes('generate')) {
             intent = 'create';
-            response = "Sure! I'll create that for you. Let me work on it right away.";
             
-            // Execute creation logic in background
-            await executeCreateOperation(message);
+            // Execute creation logic and get result
+            operationResult = await executeCreateOperation(message);
+            if (operationResult) {
+                response = "Sure! I've created that for you. The code has been generated and is ready to use.";
+            } else {
+                response = "I encountered an issue creating that. Please try again or rephrase your request.";
+            }
             
         } else if (lowerMessage.includes('edit') || lowerMessage.includes('modify') || lowerMessage.includes('change') || lowerMessage.includes('properties')) {
             intent = 'edit';
-            response = "I'll edit those properties for you. Working on it now.";
             
-            // Execute property editing in background
-            await executeEditOperation(message);
+            // Execute property editing and get result
+            operationResult = await executeEditOperation(message);
+            if (operationResult) {
+                response = "I've edited those properties for you. The changes have been applied successfully.";
+            } else {
+                response = "I had trouble making those edits. Please try again or be more specific.";
+            }
             
         } else if (lowerMessage.includes('delete') || lowerMessage.includes('remove')) {
             intent = 'delete';
-            response = "I'll remove that for you. Let me handle the deletion.";
             
-            // Execute deletion in background
-            await executeDeleteOperation(message);
+            // Execute deletion and get result
+            operationResult = await executeDeleteOperation(message);
+            if (operationResult) {
+                response = "I've removed that for you. The deletion has been completed.";
+            } else {
+                response = "I couldn't complete the deletion. Please try again or be more specific.";
+            }
             
         } else if (lowerMessage.includes('logs') || lowerMessage.includes('read logs') || lowerMessage.includes('check logs')) {
             intent = 'logs';
@@ -328,26 +411,38 @@ const processAIRequest = async (message) => {
             
         } else if (lowerMessage.includes('script') || lowerMessage.includes('code')) {
             intent = 'script';
-            response = "I'll help you with that script. Creating the code now.";
             
-            // Execute script generation
-            await executeScriptGeneration(message);
+            // Execute script generation and get result
+            operationResult = await executeScriptGeneration(message);
+            if (operationResult) {
+                response = "I've created that script for you. The code is ready and properly formatted.";
+            } else {
+                response = "I had trouble generating that script. Please try again with more details.";
+            }
             
         } else if (lowerMessage.includes('help') || lowerMessage.includes('what can you do')) {
             response = "I can help you with:\n• Creating and generating Roblox scripts\n• Editing and managing properties\n• Reading system logs\n• Deleting and removing components\n• Managing your entire Roblox project\n\nJust tell me what you need!";
             
         } else {
-            response = "I understand what you need. Let me work on that for you.";
-            // Execute general AI processing
-            await executeGeneralOperation(message);
+            // Execute general AI processing and get result
+            operationResult = await executeGeneralOperation(message);
+            if (operationResult) {
+                response = "I understand what you need. I've processed your request and the changes are ready.";
+            } else {
+                response = "I understand what you need, but I need more details to help you properly.";
+            }
         }
         
-        logger.info('AI chat request processed:', { intent, message: message.substring(0, 100) });
+        logger.info('AI chat request processed:', { 
+            intent, 
+            success: !!operationResult,
+            message: message.substring(0, 100) 
+        });
         return response;
         
     } catch (error) {
         logger.error('Error in processAIRequest:', error);
-        return "I encountered an issue while processing your request. Please try again.";
+        return "I encountered an issue while processing your request. Please check the logs and try again.";
     }
 };
 
