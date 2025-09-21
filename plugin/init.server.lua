@@ -1,4 +1,42 @@
--- AI Assistant Plugin for Roblox Studio
+-- AI-- Configuration
+local config = {
+    apiUrl = "https://bloxydev-production.up.railway.app", -- Railway deployment URL
+    apiEndpoint = "/api/ai/generate",
+    testEndpoint = "/api/test", -- Test endpoint
+    debug = true -- Enable debug logging
+}
+
+-- Test server connection on startup
+spawn(function()
+    if config.debug then
+        print("[AI Plugin] Testing connection to:", config.apiUrl)
+        
+        -- Try test endpoint first
+        local success, result = pcall(function()
+            return HttpService:GetAsync(config.apiUrl .. config.testEndpoint)
+        end)
+        
+        if success then
+            local data = HttpService:JSONDecode(result)
+            print("[AI Plugin] Server test successful:", data.message)
+            print("[AI Plugin] Available endpoints:", HttpService:JSONEncode(data.endpoints))
+        else
+            print("[AI Plugin] Test endpoint failed, trying health check...")
+            
+            -- Try health check
+            local healthSuccess, healthResult = pcall(function()
+                return HttpService:GetAsync(config.apiUrl .. "/health")
+            end)
+            
+            if healthSuccess then
+                print("[AI Plugin] Health check successful")
+            else
+                warn("[AI Plugin] Connection failed:", healthResult)
+                warn("[AI Plugin] Make sure the server is running and the URL is correct")
+            end
+        end
+    end
+end)tant Plugin for Roblox Studio
 local PluginName = "AI Dev Assistant"
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")

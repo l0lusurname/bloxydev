@@ -52,6 +52,18 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
+// Test endpoint
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        status: 'ok',
+        message: 'AI API is running',
+        endpoints: {
+            generate: '/api/ai/generate',
+            health: '/health'
+        }
+    });
+});
+
 // Start server
 const server = app.listen(port)
     .on('error', (err) => {
