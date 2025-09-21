@@ -61,7 +61,7 @@ local PluginName = "AI Dev Assistant"
 -- Create the plugin toolbar and button
 local toolbar = plugin:CreateToolbar(PluginName)
 local toggleButton = toolbar:CreateButton(
-    "AI Assistant 1.0 [BETA]",
+    "AI Assistant 1.0 [SEX VERSION]",
     "Open AI Assistant",
     "rbxassetid://4458901886" -- Default script icon
 )
