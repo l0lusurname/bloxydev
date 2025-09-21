@@ -43,3 +43,4 @@
 {"level":"info","message":"GET /","timestamp":"2025-09-21T17:48:44.393Z"}
 {"level":"info","message":"GET /health","timestamp":"2025-09-21T17:48:57.634Z"}
 {"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:48:58.140Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:54:49.502Z"}
