@@ -5,7 +5,7 @@ local Selection = game:GetService("Selection")
 
 -- Configuration
 local config = {
-    apiUrl = "http://localhost:3000", -- Change this to your deployed API URL
+    apiUrl = "https://bloxydevai.vercel.app", -- Your deployed API URL
     apiEndpoint = "/api/ai/generate",
 }
 
