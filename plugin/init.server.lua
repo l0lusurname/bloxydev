@@ -5,7 +5,7 @@ local Selection = game:GetService("Selection")
 
 -- Configuration
 local config = {
-    apiUrl = "http://localhost:3000", -- Local development server
+    apiUrl = "bloxydev-production.up.railway.app", -- Railway deployment URL
     apiEndpoint = "/api/ai/generate",
     debug = true -- Enable debug logging
 }
@@ -13,7 +13,7 @@ local config = {
 -- Create the plugin toolbar and button
 local toolbar = plugin:CreateToolbar(PluginName)
 local toggleButton = toolbar:CreateButton(
-    "AI Assistant",
+    "AI Assistant 2.0",
     "Open AI Assistant",
     "rbxassetid://4458901886" -- Default script icon
 )
