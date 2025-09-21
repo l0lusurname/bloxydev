@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "roblox-ai-assistant",
   "version": "1.0.0",
   "description": "Roblox Studio AI Assistant Plugin Backend - Generates and fixes Roblox Lua code using AI",
