@@ -13,3 +13,28 @@
 {"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:01:00.941Z"}
 {"level":"info","message":"GET /api/credits/balance","timestamp":"2025-09-21T17:01:10.127Z"}
 {"level":"info","message":"POST /api/checkpoint/save","timestamp":"2025-09-21T17:01:10.987Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:03:53.681Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:10:32.649Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:18:51.069Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:18:52.221Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:19:10.016Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:19:10.606Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:19:22.984Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:20:33.276Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:20:33.971Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:20:48.934Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:20:49.549Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:21:04.323Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:21:04.883Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:21:06.233Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:21:06.779Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:21:17.320Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:26.212Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:26.825Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:27.472Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:28.270Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:35.080Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:35.735Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:37.025Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:37.619Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:22:52.109Z"}

@@ -1,12 +1,20 @@
-const axios = require('axios');
+const OpenAI = require('openai');
 const logger = require('../utils/logger');
 
-const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+// Initialize OpenAI client with OpenRouter
+const client = new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.DEEPSEEK_API_KEY || process.env.OPENROUTER_API_KEY, // Support both key names
+    defaultHeaders: {
+        "HTTP-Referer": process.env.REPLIT_DOMAIN || "https://roblox-ai-assistant.replit.app",
+        "X-Title": "Roblox AI Assistant"
+    }
+});
 
 const generateLuaCode = async (prompt, gameTree, requestSize) => {
     try {
-        const response = await axios.post(DEEPSEEK_API_URL, {
-            model: "deepseek-coder-33b-instruct",
+        const completion = await client.chat.completions.create({
+            model: "qwen/qwen-2.5-coder-32b-instruct:free",
             messages: [{
                 role: "system",
                 content: `You are an expert Roblox Lua programmer. Generate code based on the user's request and game context.
@@ -44,17 +52,16 @@ const generateLuaCode = async (prompt, gameTree, requestSize) => {
             temperature: 0.7,
             max_tokens: getMaxTokens(requestSize),
             response_format: { type: "json_object" }
-        }, {
-            headers: {
-                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
         });
 
         // Process the response into a format the plugin can use
-        return processAIResponse(response.data.choices[0].message.content, gameTree);
+        return processAIResponse(completion.choices[0].message.content, gameTree);
     } catch (error) {
-        logger.error('Error calling Deepseek:', error);
+        logger.error('Error calling OpenRouter:', {
+            message: error.message,
+            status: error.status,
+            response: error.response?.data || error.response
+        });
         throw new Error('Failed to generate code: ' + error.message);
     }
 };
@@ -82,11 +89,11 @@ Please provide the code in the following format:
 
 const getMaxTokens = (requestSize) => {
     const tokenLimits = {
-        small: 1000,
-        medium: 2000,
-        large: 4000
+        small: 512,
+        medium: 1024,
+        large: 2048
     };
-    return tokenLimits[requestSize] || 2000;
+    return tokenLimits[requestSize] || 1024;
 };
 
 const processAIResponse = (aiResponse, gameTree) => {

@@ -15,8 +15,8 @@ const creditRoutes = require('./routes/credits');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Trust proxy for Replit environment
-app.set('trust proxy', true);
+// Trust proxy for Replit environment (configure for specific proxy setup)
+app.set('trust proxy', 'loopback');
 
 // Middleware
 app.use(helmet());
@@ -37,7 +37,8 @@ app.use((req, res, next) => {
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+    max: 100, // limit each IP to 100 requests per windowMs
+    trustProxy: 'loopback' // Trust only loopback proxies
 });
 app.use(limiter);
 
