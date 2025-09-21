@@ -14,7 +14,7 @@ local toolbar = plugin:CreateToolbar(PluginName)
 local toggleButton = toolbar:CreateButton(
     "AI Assistant",
     "Open AI Assistant",
-    "rbxassetid://0" -- Replace with your icon ID
+    "rbxassetid://4458901886" -- Default script icon
 )
 
 -- Create the plugin widget
@@ -34,27 +34,62 @@ widget.Title = PluginName
 -- Create the UI
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(1, 0, 1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+frame.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
 frame.Parent = widget
+
+-- Add padding
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 10)
+padding.PaddingBottom = UDim.new(0, 10)
+padding.PaddingLeft = UDim.new(0, 10)
+padding.PaddingRight = UDim.new(0, 10)
+padding.Parent = frame
 
 local scrollFrame = Instance.new("ScrollingFrame")
 scrollFrame.Size = UDim2.new(1, -20, 1, -120)
 scrollFrame.Position = UDim2.new(0, 10, 0, 10)
 scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 6
 scrollFrame.Parent = frame
+
+-- Add list layout for messages
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 10)
+listLayout.Parent = scrollFrame
 
 local promptBox = Instance.new("TextBox")
 promptBox.Size = UDim2.new(1, -20, 0, 60)
 promptBox.Position = UDim2.new(0, 10, 1, -100)
 promptBox.TextWrapped = true
 promptBox.PlaceholderText = "Enter your prompt here..."
+promptBox.TextXAlignment = Enum.TextXAlignment.Left
+promptBox.TextYAlignment = Enum.TextYAlignment.Top
+promptBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+promptBox.Font = Enum.Font.Gotham
+promptBox.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+promptBox.TextSize = 14
 promptBox.Parent = frame
+
+-- Add corner radius to prompt box
+local promptBoxCorner = Instance.new("UICorner")
+promptBoxCorner.CornerRadius = UDim.new(0, 6)
+promptBoxCorner.Parent = promptBox
 
 local submitButton = Instance.new("TextButton")
 submitButton.Size = UDim2.new(1, -20, 0, 30)
 submitButton.Position = UDim2.new(0, 10, 1, -30)
 submitButton.Text = "Generate Code"
+submitButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+submitButton.BorderSizePixel = 0
+submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitButton.AutoButtonColor = true
+submitButton.Font = Enum.Font.GothamSemibold
 submitButton.Parent = frame
+
+-- Add corner radius
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = submitButton
 
 -- Function to get the game tree
 local function getGameTree()
@@ -145,28 +180,25 @@ end
 -- Handle button click
 submitButton.MouseButton1Click:Connect(function()
     local prompt = promptBox.Text
-    if prompt == "" then return end
+    if prompt == "" then 
+        addMessage("Please enter a prompt first!", true)
+        return 
+    end
     
-    submitButton.Text = "Generating..."
-    submitButton.Enabled = false
+    setLoadingState(true)
+    addMessage("Generating code for: " .. prompt, false)
     
     local success, response = requestAIGeneration(prompt)
     
     if success then
         applyGeneratedCode(response.data)
         promptBox.Text = ""
+        addMessage("Code generated and applied successfully!", false)
     else
-        -- Show error in the UI
-        local errorLabel = Instance.new("TextLabel")
-        errorLabel.Text = "Error: " .. tostring(response)
-        errorLabel.Size = UDim2.new(1, -20, 0, 30)
-        errorLabel.Position = UDim2.new(0, 10, 0, scrollFrame.CanvasSize.Y.Offset)
-        errorLabel.Parent = scrollFrame
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, scrollFrame.CanvasSize.Y.Offset + 40)
+        addMessage("Error: " .. tostring(response), true)
     end
     
-    submitButton.Text = "Generate Code"
-    submitButton.Enabled = true
+    setLoadingState(false)
 end)
 
 -- Toggle widget visibility when toolbar button is clicked
