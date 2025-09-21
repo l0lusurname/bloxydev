@@ -2,12 +2,12 @@
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")
 
--- AI Assistant Configuration
+-- AI Assistant Configuration  
 local config = {
     apiUrl = "https://bloxydev-production.up.railway.app", -- Railway deployment URL
-    apiEndpoint = "/api/ai/chat", -- Using chat endpoint (no auth required)
+    apiEndpoint = "/api/ai/generate-public", -- Using public generate endpoint (no auth required)
     testEndpoint = "/api/test", -- Test endpoint
-    debug = true -- Enable debug logging
+    debug = false -- Debug logging disabled by default
 }
 
 -- Test server connection on startup
@@ -294,6 +294,35 @@ local function setInstanceProperties(instance, properties)
                 end
             elseif value.type == "UDim2" then
                 instance[propName] = UDim2.new(unpack(value.value))
+            elseif value.type == "Enum" then
+                -- Handle Enum properties like Material, Shape, etc.
+                if type(value.value) == "string" then
+                    -- Parse "Enum.Material.Plastic" or "Material.Plastic" format
+                    local enumStr = value.value
+                    if enumStr:match("^Enum%.") then
+                        -- Extract enum from "Enum.Material.Plastic"
+                        local parts = {}
+                        for part in enumStr:gmatch("[^%.]+") do
+                            table.insert(parts, part)
+                        end
+                        if #parts >= 3 then
+                            -- Enum.Material.Plastic -> Enum.Material.Plastic
+                            local success, enumValue = pcall(function()
+                                return Enum[parts[2]][parts[3]]
+                            end)
+                            if success then
+                                instance[propName] = enumValue
+                            else
+                                instance[propName] = value.value -- fallback to string
+                            end
+                        end
+                    else
+                        -- Fallback: try to set as string
+                        instance[propName] = value.value
+                    end
+                else
+                    instance[propName] = value.value
+                end
             else
                 -- Fallback for unknown typed values
                 instance[propName] = value.value
