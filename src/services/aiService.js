@@ -29,6 +29,13 @@ const generateLuaCode = async (prompt, gameTree, requestSize) => {
                         "path": ["Service", "Folder", "etc"],
                         "source": "-- Lua code here"
                     }],
+                    "scriptOperations": [{
+                        "operation": "read|modify",
+                        "path": ["Workspace", "ScriptName"],
+                        "lineStart": 1,
+                        "lineEnd": 10,
+                        "newContent": "-- New code content (for modify only)"
+                    }],
                     "instances": [{
                         "className": "Part|Model|Folder|etc",
                         "name": "InstanceName",
@@ -46,6 +53,13 @@ const generateLuaCode = async (prompt, gameTree, requestSize) => {
                             "Anchored": true,
                             ... properties to change
                         }
+                    }],
+                    "deletions": [{
+                        "operation": "single|bulk",
+                        "path": ["Workspace", "PartName"],
+                        "name": "PartName",
+                        "className": "Part|Model",
+                        "deleteAll": false
                     }]
                 }`
             }, {
@@ -77,7 +91,7 @@ ${prompt}
 Game Context:
 ${JSON.stringify(gameTree, null, 2)}
 
-Please provide the code in the following format:
+Please provide the response in the following JSON format (include empty arrays for unused sections):
 {
     "scripts": [
         {
@@ -85,6 +99,44 @@ Please provide the code in the following format:
             "name": "ScriptName",
             "path": ["Service", "Folder", "etc"],
             "source": "-- Lua code here"
+        }
+    ],
+    "scriptOperations": [
+        {
+            "operation": "read|modify",
+            "path": ["Workspace", "ScriptName"],
+            "lineStart": 1,
+            "lineEnd": 10,
+            "newContent": "-- New code content (for modify only)"
+        }
+    ],
+    "instances": [
+        {
+            "className": "Part|Model|Folder|etc",
+            "name": "InstanceName",
+            "path": ["Parent1", "Parent2"],
+            "properties": {
+                "Size": [1, 2, 3],
+                "Position": [0, 5, 0],
+                "Color": [1, 1, 1]
+            }
+        }
+    ],
+    "modifications": [
+        {
+            "path": ["Workspace", "ExistingModel", "Part"],
+            "properties": {
+                "Anchored": true
+            }
+        }
+    ],
+    "deletions": [
+        {
+            "operation": "single|bulk",
+            "path": ["Workspace", "PartName"],
+            "name": "PartName",
+            "className": "Part|Model",
+            "deleteAll": false
         }
     ]
 }`;
@@ -125,8 +177,9 @@ const processAIResponse = (aiResponse, gameTree) => {
             response = aiResponse;
         }
 
-        // Flexible validation - allow scripts OR instances OR modifications
-        if (!response.scripts && !response.instances && !response.modifications) {
+        // Flexible validation - allow any combination of operation types
+        if (!response.scripts && !response.instances && !response.modifications && 
+            !response.scriptOperations && !response.deletions) {
             // If none of the expected formats, create a generic script response
             if (typeof response === 'string' || response.message) {
                 response = {
@@ -142,10 +195,19 @@ const processAIResponse = (aiResponse, gameTree) => {
                 response = {
                     scripts: [],
                     instances: [],
-                    modifications: []
+                    modifications: [],
+                    scriptOperations: [],
+                    deletions: []
                 };
             }
         }
+
+        // Ensure all arrays exist even if empty
+        response.scripts = response.scripts || [];
+        response.instances = response.instances || [];
+        response.modifications = response.modifications || [];
+        response.scriptOperations = response.scriptOperations || [];
+        response.deletions = response.deletions || [];
 
         // Fix property types for Roblox (UDim2, Vector3, etc.)
         response = fixRobloxPropertyTypes(response);
@@ -162,7 +224,9 @@ const processAIResponse = (aiResponse, gameTree) => {
                 source: "-- Error occurred during code generation"
             }],
             instances: [],
-            modifications: []
+            modifications: [],
+            scriptOperations: [],
+            deletions: []
         };
     }
 };
@@ -193,7 +257,9 @@ const extractScriptsFromText = (text) => {
         return {
             scripts: scripts,
             instances: [],
-            modifications: []
+            modifications: [],
+            scriptOperations: [],
+            deletions: []
         };
     } catch (error) {
         logger.error('Error extracting scripts from text:', error);
@@ -205,7 +271,9 @@ const extractScriptsFromText = (text) => {
                 source: "-- Could not extract code from AI response"
             }],
             instances: [],
-            modifications: []
+            modifications: [],
+            scriptOperations: [],
+            deletions: []
         };
     }
 };
