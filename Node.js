@@ -1,4 +1,4 @@
-// AI Dev Assistant Backend Server with Claude 3.5 Sonnet
+// AI Dev Assistant Backend Server with GPT-4 (FREE $5 credits!)
 // server.js
 
 const express = require('express');
@@ -6,7 +6,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { createClient } = require('@supabase/supabase-js');
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 require('dotenv').config();
 
 const app = express();
@@ -15,11 +15,12 @@ const PORT = process.env.PORT || 3000;
 // Environment variables
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Validate required environment variables
-if (!ANTHROPIC_API_KEY) {
-    console.error('❌ ANTHROPIC_API_KEY is required');
+if (!OPENAI_API_KEY) {
+    console.error('❌ OPENAI_API_KEY is required');
+    console.error('🔗 Get free $5 credits at: https://platform.openai.com/api-keys');
     process.exit(1);
 }
 
@@ -27,8 +28,8 @@ if (!ANTHROPIC_API_KEY) {
 const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? 
     createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-const anthropic = new Anthropic({
-    apiKey: ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+    apiKey: OPENAI_API_KEY,
 });
 
 // Middleware
@@ -40,10 +41,10 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting - more generous for development
+// Rate limiting - generous for free tier
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 50, // requests per window per IP
+    max: 30, // requests per window per IP (conservative for free tier)
     message: {
         success: false,
         error: 'Too many requests. Please wait before trying again.'
@@ -126,10 +127,10 @@ function analyzeLuaScript(scriptData, gameContext) {
     return analysis;
 }
 
-function buildClaudePrompt(requestData) {
+function buildGPTPrompt(requestData) {
     const { scriptData, gameContext, relatedScripts, relevantAssets } = requestData;
     
-    let prompt = `You are an expert Roblox Lua developer analyzing and improving scripts. Here's the context:
+    let prompt = `You are an expert Roblox Lua developer analyzing and improving scripts. Provide a structured response with clear sections.
 
 TARGET SCRIPT:
 Name: ${scriptData.name}
@@ -164,24 +165,26 @@ GAME CONTEXT:
         });
     }
 
-    prompt += `\n\nPLEASE PROVIDE:
+    prompt += `\n\nPROVIDE YOUR RESPONSE IN THIS EXACT FORMAT:
 
-1. **ANALYSIS**: Analyze the script's purpose, current implementation, and how it fits in the game structure.
+**ANALYSIS**:
+[Analyze the script's purpose, current implementation, and how it fits in the game structure]
 
-2. **IMPROVED CODE**: Provide an optimized version that:
-   - Uses modern Roblox Lua best practices (task.wait instead of wait, etc.)
-   - Improves performance and readability
-   - Handles errors gracefully
-   - Follows proper coding conventions
-   - Considers the game context and related scripts
+**IMPROVED CODE**:
+\`\`\`lua
+[Provide optimized Lua code here using modern Roblox practices]
+\`\`\`
 
-3. **EXPLANATION**: Explain what changes you made and why.
+**EXPLANATION**:
+[Explain what changes you made and why]
 
-4. **RECOMMENDATIONS**: Suggest architectural improvements or alternative approaches.
+**RECOMMENDATIONS**:
+[Suggest architectural improvements or alternative approaches]
 
-5. **PERFORMANCE NOTES**: Highlight any performance considerations or optimizations.
+**PERFORMANCE NOTES**:
+[Highlight any performance considerations or optimizations]
 
-Focus on practical, working code that integrates well with the existing game structure. Consider the script's role in the broader game context.`;
+Focus on modern Roblox Lua best practices (task.wait instead of wait, proper service usage, error handling, etc.). Consider the script's role in the broader game context.`;
 
     return prompt;
 }
@@ -209,25 +212,9 @@ async function getUserCredits(userId) {
     }
 }
 
-async function deductCredits(userId, amount) {
-    if (!supabase) return true; // Skip for development
-    
-    try {
-        const { error } = await supabase.rpc('deduct_user_credits', {
-            user_id_param: userId,
-            amount: amount
-        });
-        
-        return !error;
-    } catch (error) {
-        console.error('Error deducting credits:', error);
-        return false;
-    }
-}
-
 async function logRequest(userId, requestType, scriptName, status, tokensUsed = 0) {
     if (!supabase) {
-        console.log(`LOG: User ${userId} - ${requestType} - ${scriptName} - ${status} - ${tokensUsed} tokens`);
+        console.log(`📊 LOG: User ${userId} - ${requestType} - ${scriptName} - ${status} - ${tokensUsed} tokens`);
         return;
     }
     
@@ -257,8 +244,8 @@ app.get('/health', (req, res) => {
     res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '2.0.0',
-        ai: 'Claude 3.5 Sonnet',
+        version: '2.0.0-gpt4',
+        ai: 'GPT-4 (FREE $5 Credits)',
         database: supabase ? 'connected' : 'disabled'
     });
 });
@@ -282,7 +269,7 @@ app.get('/api/credits/:userId', async (req, res) => {
     }
 });
 
-// Main Claude analysis endpoint
+// Main GPT-4 analysis endpoint
 app.post('/api/claude-analysis', async (req, res) => {
     const startTime = Date.now();
     
@@ -297,55 +284,47 @@ app.post('/api/claude-analysis', async (req, res) => {
             });
         }
         
-        console.log(`🤖 Starting Claude analysis for user ${userId}`);
+        console.log(`🤖 Starting GPT-4 analysis for user ${userId}`);
         console.log(`📜 Script: ${scriptData.name} (${scriptData.source.length} characters)`);
         
-        // Check user credits
-        const credits = await getUserCredits(userId);
-        if (credits < 1) {
-            return res.status(402).json({
-                success: false,
-                error: 'Insufficient credits. Please purchase more credits to continue.',
-                creditsAvailable: credits
-            });
-        }
-        
         // Log request start
-        await logRequest(userId, 'claude_analysis', scriptData.name, 'processing');
+        await logRequest(userId, 'gpt4_analysis', scriptData.name, 'processing');
         
         // Analyze script for better context
         const scriptAnalysis = analyzeLuaScript(scriptData, gameContext);
         console.log(`📊 Script analysis: ${scriptAnalysis.complexity} complexity, ${scriptAnalysis.patterns.length} patterns, ${scriptAnalysis.issues.length} issues`);
         
         // Build comprehensive prompt
-        const prompt = buildClaudePrompt(req.body);
+        const prompt = buildGPTPrompt(req.body);
         console.log(`📝 Prompt size: ${prompt.length} characters`);
         
-        // Call Claude 3.5 Sonnet
-        const message = await anthropic.messages.create({
-            model: "claude-3-5-sonnet-20241022",
-            max_tokens: 4000,
-            temperature: 0.1,
-            messages: [{
-                role: "user",
-                content: prompt
-            }]
+        // Call GPT-4
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4", // Using GPT-4 for best results
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert Roblox Lua developer. Provide structured, helpful analysis and modern code improvements."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            max_tokens: 3000,
+            temperature: 0.1
         });
         
-        const claudeResponse = message.content[0].text;
-        const tokensUsed = message.usage.input_tokens + message.usage.output_tokens;
+        const gptResponse = completion.choices[0].message.content;
+        const tokensUsed = completion.usage.total_tokens;
         
-        console.log(`✅ Claude response received (${tokensUsed} tokens)`);
+        console.log(`✅ GPT-4 response received (${tokensUsed} tokens)`);
         
-        // Parse Claude's response into structured format
-        const responseData = parseClaudeResponse(claudeResponse, scriptData.source);
-        
-        // Deduct credits
-        const creditsToDeduct = Math.max(1, Math.ceil(tokensUsed / 1000));
-        await deductCredits(userId, creditsToDeduct);
+        // Parse GPT's response into structured format
+        const responseData = parseGPTResponse(gptResponse, scriptData.source);
         
         // Log successful completion
-        await logRequest(userId, 'claude_analysis', scriptData.name, 'completed', tokensUsed);
+        await logRequest(userId, 'gpt4_analysis', scriptData.name, 'completed', tokensUsed);
         
         const processingTime = Date.now() - startTime;
         console.log(`🎉 Analysis completed in ${processingTime}ms`);
@@ -354,30 +333,41 @@ app.post('/api/claude-analysis', async (req, res) => {
             success: true,
             ...responseData,
             tokensUsed: tokensUsed,
-            creditsUsed: creditsToDeduct,
-            creditsRemaining: credits - creditsToDeduct,
+            creditsUsed: Math.ceil(tokensUsed / 1000),
+            creditsRemaining: 'Free Tier',
             processingTimeMs: processingTime,
-            scriptAnalysis: scriptAnalysis
+            scriptAnalysis: scriptAnalysis,
+            aiModel: 'GPT-4'
         });
         
     } catch (error) {
-        console.error('❌ Error processing Claude request:', error);
+        console.error('❌ Error processing GPT-4 request:', error);
+        
+        // Handle specific OpenAI errors
+        let errorMessage = 'Analysis failed. Please try again.';
+        if (error.status === 401) {
+            errorMessage = 'Invalid OpenAI API key. Please check your configuration.';
+        } else if (error.status === 429) {
+            errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        } else if (error.status === 402) {
+            errorMessage = 'OpenAI credits exhausted. Please add more credits to your account.';
+        }
         
         // Log error
         if (req.body.userId && req.body.scriptData) {
-            await logRequest(req.body.userId, 'claude_analysis', req.body.scriptData.name, 'error');
+            await logRequest(req.body.userId, 'gpt4_analysis', req.body.scriptData.name, 'error');
         }
         
         res.status(500).json({
             success: false,
-            error: 'Analysis failed. Please try again.',
+            error: errorMessage,
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
-// Parse Claude's response into structured components
-function parseClaudeResponse(claudeText, originalCode) {
+// Parse GPT's response into structured components
+function parseGPTResponse(gptText, originalCode) {
     const response = {
         analysis: '',
         improvedCode: originalCode,
@@ -389,16 +379,16 @@ function parseClaudeResponse(claudeText, originalCode) {
     try {
         // Extract sections using regex patterns
         const sections = {
-            analysis: /(?:\*\*ANALYSIS\*\*|1\.\s*\*\*ANALYSIS\*\*):\s*([\s\S]*?)(?=\*\*|$)/i,
-            code: /(?:\*\*IMPROVED CODE\*\*|2\.\s*\*\*IMPROVED CODE\*\*)[\s\S]*?```lua([\s\S]*?)```/i,
-            explanation: /(?:\*\*EXPLANATION\*\*|3\.\s*\*\*EXPLANATION\*\*):\s*([\s\S]*?)(?=\*\*|$)/i,
-            recommendations: /(?:\*\*RECOMMENDATIONS\*\*|4\.\s*\*\*RECOMMENDATIONS\*\*):\s*([\s\S]*?)(?=\*\*|$)/i,
-            performance: /(?:\*\*PERFORMANCE NOTES\*\*|5\.\s*\*\*PERFORMANCE NOTES\*\*):\s*([\s\S]*?)(?=\*\*|$)/i
+            analysis: /\*\*ANALYSIS\*\*:\s*([\s\S]*?)(?=\*\*|$)/i,
+            code: /\*\*IMPROVED CODE\*\*:\s*```lua([\s\S]*?)```/i,
+            explanation: /\*\*EXPLANATION\*\*:\s*([\s\S]*?)(?=\*\*|$)/i,
+            recommendations: /\*\*RECOMMENDATIONS\*\*:\s*([\s\S]*?)(?=\*\*|$)/i,
+            performance: /\*\*PERFORMANCE NOTES\*\*:\s*([\s\S]*?)(?=\*\*|$)/i
         };
         
         // Extract each section
         for (const [key, regex] of Object.entries(sections)) {
-            const match = claudeText.match(regex);
+            const match = gptText.match(regex);
             if (match) {
                 const content = match[1].trim();
                 switch (key) {
@@ -423,12 +413,12 @@ function parseClaudeResponse(claudeText, originalCode) {
         
         // Fallback: if no structured sections found, use the entire response
         if (!response.analysis && !response.explanation) {
-            response.analysis = claudeText;
+            response.analysis = gptText;
         }
         
     } catch (error) {
-        console.error('Error parsing Claude response:', error);
-        response.analysis = claudeText;
+        console.error('Error parsing GPT response:', error);
+        response.analysis = gptText;
     }
     
     return response;
@@ -436,7 +426,7 @@ function parseClaudeResponse(claudeText, originalCode) {
 
 // Legacy endpoint for backward compatibility
 app.post('/api/ai-help', async (req, res) => {
-    // Redirect to new Claude endpoint with adapted format
+    // Redirect to new GPT-4 endpoint with adapted format
     const adaptedRequest = {
         userId: req.body.userId,
         scriptData: {
@@ -458,7 +448,7 @@ app.post('/api/ai-help', async (req, res) => {
     
     req.body = adaptedRequest;
     
-    // Forward to Claude analysis
+    // Forward to GPT-4 analysis
     app.handle(Object.assign(req, { path: '/api/claude-analysis', method: 'POST' }), res);
 });
 
@@ -482,12 +472,14 @@ app.use('*', (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 AI Dev Assistant Backend running on port ${PORT}`);
-    console.log(`🤖 Powered by Claude 3.5 Sonnet`);
+    console.log(`🤖 Powered by GPT-4 (FREE $5 Credits!)`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🔧 Analysis endpoint: http://localhost:${PORT}/api/claude-analysis`);
     console.log(`💾 Database: ${supabase ? 'Connected' : 'Disabled (dev mode)'}`);
+    console.log(`💰 OpenAI Free Credits: Get yours at https://platform.openai.com/api-keys`);
     
-    if (!ANTHROPIC_API_KEY) {
-        console.warn('⚠️  Warning: ANTHROPIC_API_KEY not configured');
+    if (!OPENAI_API_KEY) {
+        console.warn('⚠️  Warning: OPENAI_API_KEY not configured');
+        console.log('🔗 Get free $5 credits: https://platform.openai.com/api-keys');
     }
 });
