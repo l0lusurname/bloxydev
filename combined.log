@@ -1,1 +1,4 @@
 {"level":"info","message":"Server is running on port 3000","timestamp":"2025-09-21T09:23:13.994Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-09-21T09:26:13.619Z"}
+{"level":"warn","message":"Port 3000 is busy, trying 30001...","timestamp":"2025-09-21T09:27:11.053Z"}
+{"level":"info","message":"Server is running on port 30001","timestamp":"2025-09-21T09:27:11.063Z"}
