@@ -13,7 +13,7 @@ const checkpointRoutes = require('./routes/checkpoint');
 const creditRoutes = require('./routes/credits');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
@@ -65,11 +65,11 @@ app.get('/api/test', (req, res) => {
 });
 
 // Start server
-const server = app.listen(port)
+const server = app.listen(port, '0.0.0.0')
     .on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
             logger.warn(`Port ${port} is busy, trying ${port + 1}...`);
-            server.listen(port + 1);
+            server.listen(port + 1, '0.0.0.0');
         } else {
             logger.error('Server error:', err);
             process.exit(1);
@@ -77,5 +77,5 @@ const server = app.listen(port)
     })
     .on('listening', () => {
         const address = server.address();
-        logger.info(`Server is running on port ${address.port}`);
+        logger.info(`Server is running on ${address.address}:${address.port}`);
     });
