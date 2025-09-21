@@ -65,3 +65,22 @@
 {"level":"info","message":"Executing create operation:","timestamp":"2025-09-21T18:20:50.180Z"}
 {"level":"info","message":"Creation operation completed","timestamp":"2025-09-21T18:20:50.181Z"}
 {"intent":"create","level":"info","message":"AI chat request processed: create a script for me","timestamp":"2025-09-21T18:20:50.181Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:01.624Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:12.211Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:16.224Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:58.941Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:10.274Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:13.460Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:17.405Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:21.239Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:27:47.780Z"}
+{"level":"info","message":"Executing create operation:","timestamp":"2025-09-21T18:27:47.783Z"}
+{"level":"error","message":"Error calling OpenRouter: 401 No auth credentials found","status":401,"timestamp":"2025-09-21T18:27:47.952Z"}
+{"level":"error","message":"Error in create operation: Failed to generate code: 401 No auth credentials found","stack":"Error: Failed to generate code: 401 No auth credentials found\n    at generateLuaCode (/home/runner/workspace/src/services/aiService.js:68:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async executeCreateOperation (/home/runner/workspace/src/services/aiService.js:360:31)\n    at async processAIRequest (/home/runner/workspace/src/services/aiService.js:308:13)\n    at async handleChat (/home/runner/workspace/src/controllers/aiController.js:33:28)","timestamp":"2025-09-21T18:27:47.954Z"}
+{"intent":"create","level":"info","message":"AI chat request processed: create a large complex tower defense game script with multiple enemy types, towers, and wave system","timestamp":"2025-09-21T18:27:47.954Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:27:48.264Z"}
+{"level":"info","message":"Executing edit operation:","timestamp":"2025-09-21T18:27:48.265Z"}
+{"level":"error","message":"Error calling OpenRouter: 401 No auth credentials found","status":401,"timestamp":"2025-09-21T18:27:48.469Z"}
+{"level":"error","message":"Error in edit operation: Failed to generate code: 401 No auth credentials found","stack":"Error: Failed to generate code: 401 No auth credentials found\n    at generateLuaCode (/home/runner/workspace/src/services/aiService.js:68:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async executeEditOperation (/home/runner/workspace/src/services/aiService.js:382:31)\n    at async processAIRequest (/home/runner/workspace/src/services/aiService.js:315:13)\n    at async handleChat (/home/runner/workspace/src/controllers/aiController.js:33:28)","timestamp":"2025-09-21T18:27:48.476Z"}
+{"intent":"edit","level":"info","message":"AI chat request processed: edit the player health property to 200","timestamp":"2025-09-21T18:27:48.476Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T18:28:24.557Z"}
