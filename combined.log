@@ -102,3 +102,5 @@
 {"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:34:56.470Z"}
 {"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:35:21.364Z"}
 {"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:35:23.715Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:46:42.886Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T18:46:45.303Z"}
