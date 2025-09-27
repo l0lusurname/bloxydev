@@ -7,9 +7,14 @@ const generateCode = async (req, res, next) => {
             prompt, 
             gameTree, 
             requestSize = 'medium',
-            mode = 'direct_edit',
+            mode: requestedMode = 'auto',
             selectedInstances = []
         } = req.body;
+        
+        // Auto-determine mode if requested
+        const mode = requestedMode === 'auto' ? 
+            determineOptimalMode(prompt, gameTree, selectedInstances) : 
+            requestedMode;
         
         logger.info(`Processing request in ${mode} mode:`, {
             prompt: prompt.substring(0, 100),
@@ -259,37 +264,119 @@ const analyzePrompt = async (req, res, next) => {
     }
 };
 
-const suggestOptimalMode = (prompt, complexity) => {
+const determineOptimalMode = (prompt, gameTree, selectedInstances) => {
     const lowerPrompt = prompt.toLowerCase();
+    let score = { direct_edit: 0, script_generation: 0 };
     
-    // Direct edit is better for simple property changes
+    // Keywords that strongly favor direct editing
     const directEditKeywords = [
-        'color', 'size', 'position', 'delete', 'move', 'anchor', 'material',
-        'transparency', 'brightness', 'volume'
+        'color', 'size', 'position', 'delete', 'remove', 'move', 'resize',
+        'anchor', 'material', 'transparency', 'brightness', 'volume',
+        'rotation', 'scale', 'name', 'parent', 'visible', 'enabled'
     ];
     
-    // Script generation is better for complex logic
+    // Keywords that favor script generation
     const scriptGenKeywords = [
         'script', 'function', 'behavior', 'animation', 'tween', 'loop',
-        'event', 'trigger', 'collision', 'mouse', 'keyboard'
+        'event', 'trigger', 'collision', 'mouse', 'keyboard', 'click',
+        'touch', 'timer', 'wait', 'while', 'if', 'when', 'detect',
+        'spawn', 'clone', 'gui', 'menu', 'button', 'leaderboard'
     ];
-
-    const directEditScore = directEditKeywords.reduce((score, keyword) => {
-        return lowerPrompt.includes(keyword) ? score + 1 : score;
-    }, 0);
-
-    const scriptGenScore = scriptGenKeywords.reduce((score, keyword) => {
-        return lowerPrompt.includes(keyword) ? score + 1 : score;
-    }, 0);
-
-    // For high complexity operations, prefer script generation
-    if (complexity > 7) return 'script_generation';
     
-    // If script keywords are dominant, use script generation
-    if (scriptGenScore > directEditScore) return 'script_generation';
+    // Complex operation keywords (usually need scripts)
+    const complexKeywords = [
+        'ai', 'pathfinding', 'algorithm', 'calculate', 'track', 'follow',
+        'chase', 'patrol', 'random', 'generate', 'procedural', 'dynamic'
+    ];
     
-    // Default to direct edit for simpler operations
-    return 'direct_edit';
+    // Count keyword matches
+    directEditKeywords.forEach(keyword => {
+        if (lowerPrompt.includes(keyword)) {
+            score.direct_edit += 2;
+        }
+    });
+    
+    scriptGenKeywords.forEach(keyword => {
+        if (lowerPrompt.includes(keyword)) {
+            score.script_generation += 2;
+        }
+    });
+    
+    complexKeywords.forEach(keyword => {
+        if (lowerPrompt.includes(keyword)) {
+            score.script_generation += 3;
+        }
+    });
+    
+    // Analyze prompt structure for additional clues
+    
+    // Simple property modifications usually indicate direct edit
+    const propertyPatterns = [
+        /make.*?red|blue|green|yellow|purple|orange|black|white/,
+        /change.*?size|color|position|material/,
+        /set.*?to.*?\d/,
+        /make.*?bigger|smaller|larger|transparent/
+    ];
+    
+    propertyPatterns.forEach(pattern => {
+        if (pattern.test(lowerPrompt)) {
+            score.direct_edit += 3;
+        }
+    });
+    
+    // Behavioral descriptions usually need scripts
+    const behaviorPatterns = [
+        /when.*?clicked|touched|hit/,
+        /if.*?then/,
+        /make.*?move|rotate|spin|bounce/,
+        /create.*?that.*?does/,
+        /add.*?script|function|behavior/
+    ];
+    
+    behaviorPatterns.forEach(pattern => {
+        if (pattern.test(lowerPrompt)) {
+            score.script_generation += 3;
+        }
+    });
+    
+    // Batch operations often work better with direct edit
+    if (lowerPrompt.includes('all ') || lowerPrompt.includes('every ')) {
+        // But only if it's not creating new behavior
+        if (!lowerPrompt.includes('script') && !lowerPrompt.includes('function')) {
+            score.direct_edit += 2;
+        }
+    }
+    
+    // Selected instances bias toward direct edit (easier to modify existing)
+    if (selectedInstances && selectedInstances.length > 0) {
+        score.direct_edit += 1;
+    }
+    
+    // Very short prompts are usually simple modifications
+    if (prompt.length < 30) {
+        score.direct_edit += 1;
+    }
+    
+    // Very long prompts often describe complex behavior
+    if (prompt.length > 100) {
+        score.script_generation += 1;
+    }
+    
+    // Determine final mode
+    const finalMode = score.direct_edit >= score.script_generation ? 'direct_edit' : 'script_generation';
+    
+    logger.info('Auto-determined mode:', {
+        prompt: prompt.substring(0, 50),
+        scores: score,
+        selectedMode: finalMode
+    });
+    
+    return finalMode;
+};
+
+const suggestOptimalMode = (prompt, complexity) => {
+    // This function is kept for backward compatibility but now uses the more sophisticated determineOptimalMode
+    return determineOptimalMode(prompt, {}, []);
 };
 
 const analyzePromptIntent = (prompt) => {

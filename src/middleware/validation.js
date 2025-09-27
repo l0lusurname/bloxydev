@@ -172,8 +172,8 @@ const aiRequestSchema = Joi.object({
         .default('medium'),
     
     mode: Joi.string()
-        .valid('direct_edit', 'script_generation')
-        .default('direct_edit'),
+        .valid('direct_edit', 'script_generation', 'auto')
+        .default('auto'), // Auto-determine mode based on prompt
     
     selectedInstances: Joi.array()
         .items(selectedInstanceSchema)
