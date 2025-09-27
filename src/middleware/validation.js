@@ -1,141 +1,7 @@
 const Joi = require('joi');
 const logger = require('../utils/logger');
 
-// Validate operations response from AI (for direct edit mode)
-const validateOperationsResponse = (operations) => {
-    if (!Array.isArray(operations)) {
-        return { valid: false, errors: ['Operations must be an array'] };
-    }
-    
-    const errors = [];
-    const validatedOps = [];
-    
-    operations.forEach((op, index) => {
-        try {
-            let schema;
-            
-            switch (op.type) {
-                case 'modify_instance':
-                    schema = modifyInstanceSchema;
-                    break;
-                case 'edit_script':
-                    schema = editScriptSchema;
-                    break;
-                case 'delete_instance':
-                    schema = deleteInstanceSchema;
-                    break;
-                default:
-                    errors.push(`Operation ${index}: Unknown operation type '${op.type}'`);
-                    return;
-            }
-            
-            const { error, value } = schema.validate(op);
-            
-            if (error) {
-                errors.push(`Operation ${index}: ${error.details.map(d => d.message).join(', ')}`);
-            } else {
-                validatedOps.push(value);
-            }
-            
-        } catch (err) {
-            errors.push(`Operation ${index}: Validation error - ${err.message}`);
-        }
-    });
-    
-    return {
-        valid: errors.length === 0,
-        errors,
-        validatedOperations: validatedOps
-    };
-};
-
-// Sanitize user input to prevent potential security issues
-const sanitizePrompt = (prompt) => {
-    return prompt
-        .replace(/[<>]/g, '') // Remove potential HTML/XML tags
-        .replace(/javascript:/gi, '') // Remove javascript: protocol
-        .replace(/data:/gi, '') // Remove data: protocol
-        .trim();
-};
-
-// Rate limiting validation
-const validateRateLimit = (req, res, next) => {
-    const userIdentifier = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    
-    // Check if user has made too many requests recently
-    // This would typically use Redis or similar for production
-    logger.info(`Request from ${userIdentifier}`, {
-        endpoint: req.path,
-        method: req.method
-    });
-    
-    next();
-};
-
-// Additional security middleware
-const validateSecurity = (req, res, next) => {
-    try {
-        // Check request size
-        const contentLength = parseInt(req.headers['content-length'] || '0');
-        const maxSize = 50 * 1024 * 1024; // 50MB max
-        
-        if (contentLength > maxSize) {
-            return res.status(413).json({
-                success: false,
-                error: 'Request too large',
-                details: 'Request exceeds maximum allowed size'
-            });
-        }
-        
-        // Sanitize prompt if present
-        if (req.body.prompt) {
-            req.body.prompt = sanitizePrompt(req.body.prompt);
-        }
-        
-        // Check for suspicious patterns
-        const suspiciousPatterns = [
-            /\b(eval|exec|system|shell|cmd)\s*\(/i,
-            /\b(require|import)\s*\(/i,
-            /<script[^>]*>/i,
-            /javascript:/i,
-            /on\w+\s*=/i
-        ];
-        
-        const requestBody = JSON.stringify(req.body);
-        
-        for (const pattern of suspiciousPatterns) {
-            if (pattern.test(requestBody)) {
-                logger.warn('Suspicious request detected', {
-                    ip: req.ip,
-                    pattern: pattern.source,
-                    body: requestBody.substring(0, 200)
-                });
-                
-                return res.status(400).json({
-                    success: false,
-                    error: 'Invalid request content',
-                    details: 'Request contains potentially harmful content'
-                });
-            }
-        }
-        
-        next();
-        
-    } catch (error) {
-        logger.error('Security validation error:', error);
-        next(error);
-    }
-};
-
-module.exports = {
-    validateAIRequest,
-    validateAnalyzeRequest,
-    validateGameTree,
-    validateOperationsResponse,
-    validateRateLimit,
-    validateSecurity,
-    sanitizePrompt
-}; Enhanced game tree schema with more detailed validation
+// Enhanced game tree schema with more detailed validation
 const gameTreeSchema = Joi.object({
     Workspace: Joi.object().required(),
     StarterGui: Joi.object().optional(),
@@ -399,6 +265,132 @@ const validateGameTree = async (req, res, next) => {
     }
 };
 
+// Validate operations response from AI (for direct edit mode)
+const validateOperationsResponse = (operations) => {
+    if (!Array.isArray(operations)) {
+        return { valid: false, errors: ['Operations must be an array'] };
+    }
+    
+    const errors = [];
+    const validatedOps = [];
+    
+    operations.forEach((op, index) => {
+        try {
+            let schema;
+            
+            switch (op.type) {
+                case 'modify_instance':
+                    schema = modifyInstanceSchema;
+                    break;
+                case 'edit_script':
+                    schema = editScriptSchema;
+                    break;
+                case 'delete_instance':
+                    schema = deleteInstanceSchema;
+                    break;
+                default:
+                    errors.push(`Operation ${index}: Unknown operation type '${op.type}'`);
+                    return;
+            }
+            
+            const { error, value } = schema.validate(op);
+            
+            if (error) {
+                errors.push(`Operation ${index}: ${error.details.map(d => d.message).join(', ')}`);
+            } else {
+                validatedOps.push(value);
+            }
+            
+        } catch (err) {
+            errors.push(`Operation ${index}: Validation error - ${err.message}`);
+        }
+    });
+    
+    return {
+        valid: errors.length === 0,
+        errors,
+        validatedOperations: validatedOps
+    };
+};
+
+// Sanitize user input to prevent potential security issues
+const sanitizePrompt = (prompt) => {
+    return prompt
+        .replace(/[<>]/g, '') // Remove potential HTML/XML tags
+        .replace(/javascript:/gi, '') // Remove javascript: protocol
+        .replace(/data:/gi, '') // Remove data: protocol
+        .trim();
+};
+
+// Rate limiting validation
+const validateRateLimit = (req, res, next) => {
+    const userIdentifier = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    
+    // Check if user has made too many requests recently
+    // This would typically use Redis or similar for production
+    logger.info(`Request from ${userIdentifier}`, {
+        endpoint: req.path,
+        method: req.method
+    });
+    
+    next();
+};
+
+// Additional security middleware
+const validateSecurity = (req, res, next) => {
+    try {
+        // Check request size
+        const contentLength = parseInt(req.headers['content-length'] || '0');
+        const maxSize = 50 * 1024 * 1024; // 50MB max
+        
+        if (contentLength > maxSize) {
+            return res.status(413).json({
+                success: false,
+                error: 'Request too large',
+                details: 'Request exceeds maximum allowed size'
+            });
+        }
+        
+        // Sanitize prompt if present
+        if (req.body.prompt) {
+            req.body.prompt = sanitizePrompt(req.body.prompt);
+        }
+        
+        // Check for suspicious patterns
+        const suspiciousPatterns = [
+            /\b(eval|exec|system|shell|cmd)\s*\(/i,
+            /\b(require|import)\s*\(/i,
+            /<script[^>]*>/i,
+            /javascript:/i,
+            /on\w+\s*=/i
+        ];
+        
+        const requestBody = JSON.stringify(req.body);
+        
+        for (const pattern of suspiciousPatterns) {
+            if (pattern.test(requestBody)) {
+                logger.warn('Suspicious request detected', {
+                    ip: req.ip,
+                    pattern: pattern.source,
+                    body: requestBody.substring(0, 200)
+                });
+                
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid request content',
+                    details: 'Request contains potentially harmful content'
+                });
+            }
+        }
+        
+        next();
+        
+    } catch (error) {
+        logger.error('Security validation error:', error);
+        next(error);
+    }
+};
+
 // Helper validation functions
 const validateGameTreeStructure = (gameTree) => {
     try {
@@ -469,4 +461,12 @@ const validateSelectedInstances = (instances) => {
     return invalid;
 };
 
-//
+module.exports = {
+    validateAIRequest,
+    validateAnalyzeRequest,
+    validateGameTree,
+    validateOperationsResponse,
+    validateRateLimit,
+    validateSecurity,
+    sanitizePrompt
+};
