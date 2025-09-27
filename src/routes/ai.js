@@ -1,7 +1,15 @@
+// routes/ai.js
 const express = require('express');
 const router = express.Router();
 const { validateAIRequest, validateAnalyzeRequest } = require('../middleware/validation');
-const { generateCode, analyzePrompt, getOperationStats } = require('../controllers/aiController');
+const { 
+    generateCode, 
+    analyzePrompt, 
+    getOperationStats,
+    switchAIProvider,
+    getProviderInfo,
+    testProviderConnection
+} = require('../controllers/aiController');
 const authenticate = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 
@@ -28,11 +36,29 @@ const analyzeLimiter = rateLimit({
     legacyHeaders: false
 });
 
+const providerLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 10, // 10 provider switches per 10 minutes
+    message: {
+        error: 'Too many provider switch requests',
+        details: 'Please wait before switching providers again'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 // Generate Lua code based on prompt and game tree
 router.post('/generate', 
     authenticate, 
     generateLimiter,
     validateAIRequest, 
+    generateCode
+);
+
+// Public generate endpoint (no authentication required for testing)
+router.post('/generate-public',
+    generateLimiter,
+    validateAIRequest,
     generateCode
 );
 
@@ -50,13 +76,41 @@ router.get('/stats',
     getOperationStats
 );
 
+// NEW MULTI-PROVIDER ENDPOINTS
+
+// Switch AI provider
+router.post('/provider/switch',
+    authenticate,
+    providerLimiter,
+    switchAIProvider
+);
+
+// Get current provider information
+router.get('/provider/info',
+    authenticate,
+    getProviderInfo
+);
+
+// Get provider info without authentication (for public use)
+router.get('/provider/info-public',
+    getProviderInfo
+);
+
+// Test provider connection
+router.get('/provider/test',
+    authenticate,
+    testProviderConnection
+);
+
 // Health check for AI service
 router.get('/health', (req, res) => {
     res.json({
         status: 'ok',
-        service: 'AI Generation Service',
-        version: '2.0.0',
+        service: 'Multi-Provider AI Generation Service',
+        version: '2.1.0',
         features: [
+            'multi_provider_support',
+            'automatic_fallback',
             'direct_edit_mode',
             'script_generation_mode', 
             'batch_operations',
@@ -64,6 +118,12 @@ router.get('/health', (req, res) => {
             'line_level_script_editing',
             'prompt_analysis',
             'operation_statistics'
+        ],
+        supportedProviders: [
+            'OpenRouter',
+            'OpenAI',
+            'Anthropic Claude',
+            'Google Gemini'
         ],
         timestamp: new Date().toISOString()
     });
@@ -82,10 +142,19 @@ router.get('/info', authenticate, (req, res) => {
                 parameters: {
                     prompt: { type: 'string', required: true, maxLength: 2000 },
                     gameTree: { type: 'object', required: true },
-                    mode: { type: 'string', enum: ['direct_edit', 'script_generation'], default: 'direct_edit' },
+                    mode: { type: 'string', enum: ['direct_edit', 'script_generation', 'auto'], default: 'auto' },
                     requestSize: { type: 'string', enum: ['small', 'medium', 'large'], default: 'medium' },
-                    selectedInstances: { type: 'array', required: false }
+                    selectedInstances: { type: 'array', required: false },
+                    provider: { type: 'string', required: false, description: 'Specific AI provider to use' }
                 }
+            },
+            generatePublic: {
+                path: '/api/ai/generate-public',
+                method: 'POST',
+                description: 'Public generation endpoint (no authentication)',
+                rateLimit: '30 requests per 15 minutes',
+                requiredAuth: false,
+                parameters: 'Same as /generate'
             },
             analyze: {
                 path: '/api/ai/analyze',
@@ -99,11 +168,67 @@ router.get('/info', authenticate, (req, res) => {
                     selectedInstances: { type: 'array', required: false }
                 }
             },
+            switchProvider: {
+                path: '/api/ai/provider/switch',
+                method: 'POST',
+                description: 'Switch to a different AI provider',
+                rateLimit: '10 requests per 10 minutes',
+                requiredAuth: true,
+                parameters: {
+                    provider: { 
+                        type: 'string', 
+                        required: true, 
+                        enum: ['openrouter', 'openai', 'anthropic', 'google'],
+                        description: 'Provider to switch to'
+                    }
+                }
+            },
+            providerInfo: {
+                path: '/api/ai/provider/info',
+                method: 'GET',
+                description: 'Get current provider and available providers',
+                requiredAuth: true
+            },
+            providerTest: {
+                path: '/api/ai/provider/test',
+                method: 'GET',
+                description: 'Test connection to current or specified provider',
+                requiredAuth: true,
+                parameters: {
+                    provider: { type: 'query', required: false, description: 'Provider to test (optional)' }
+                }
+            },
             stats: {
                 path: '/api/ai/stats',
                 method: 'GET',
                 description: 'Get usage statistics and operation history',
                 requiredAuth: true
+            }
+        },
+        providers: {
+            openrouter: {
+                name: 'OpenRouter',
+                description: 'Access to multiple models through OpenRouter API',
+                models: ['deepseek/deepseek-r1-0528:free', 'anthropic/claude-3.5-sonnet', 'openai/gpt-4-turbo', 'google/gemini-pro'],
+                keyRequired: 'OPENROUTER_API_KEY'
+            },
+            openai: {
+                name: 'OpenAI',
+                description: 'Direct access to OpenAI GPT models',
+                models: ['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo'],
+                keyRequired: 'OPENAI_API_KEY'
+            },
+            anthropic: {
+                name: 'Anthropic Claude',
+                description: 'Direct access to Claude models',
+                models: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+                keyRequired: 'ANTHROPIC_API_KEY'
+            },
+            google: {
+                name: 'Google Gemini',
+                description: 'Direct access to Google Gemini models',
+                models: ['gemini-pro', 'gemini-pro-vision'],
+                keyRequired: 'GOOGLE_API_KEY'
             }
         },
         modes: {
@@ -116,6 +241,11 @@ router.get('/info', authenticate, (req, res) => {
                 description: 'Create new scripts and instances for complex functionality',
                 bestFor: ['New behaviors', 'Complex logic', 'Event handling', 'Animations'],
                 operations: ['create_script', 'create_instance']
+            },
+            auto: {
+                description: 'Automatically determine the best mode based on the prompt',
+                bestFor: ['General use', 'When unsure which mode to use'],
+                operations: 'Depends on analysis'
             }
         },
         propertyTypes: [
