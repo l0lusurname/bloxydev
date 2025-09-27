@@ -1,7 +1,7 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 
-const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const generateLuaCode = async (prompt, gameTree, requestSize, mode = 'direct_edit', selectedInstances = []) => {
     try {
@@ -10,8 +10,8 @@ const generateLuaCode = async (prompt, gameTree, requestSize, mode = 'direct_edi
 
         logger.info(`Generating code in ${mode} mode for prompt: ${prompt.substring(0, 100)}...`);
 
-        const response = await axios.post(DEEPSEEK_API_URL, {
-            model: "deepseek-coder-33b-instruct",
+        const response = await axios.post(OPENROUTER_API_URL, {
+            model: "deepseek/deepseek-r1-0528:free", // Free DeepSeek model via OpenRouter
             messages: [{
                 role: "system",
                 content: systemPrompt
@@ -19,12 +19,13 @@ const generateLuaCode = async (prompt, gameTree, requestSize, mode = 'direct_edi
                 role: "user",
                 content: userPrompt
             }],
-            temperature: 0.3, // Lower temperature for more precise operations
-            max_tokens: getMaxTokens(requestSize),
-            response_format: { type: "json_object" }
+            temperature: 0.3,
+            max_tokens: getMaxTokens(requestSize)
         }, {
             headers: {
-                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                'HTTP-Referer': process.env.SITE_URL || 'https://your-app.com',
+                'X-Title': process.env.SITE_NAME || 'Roblox AI Assistant',
                 'Content-Type': 'application/json'
             },
             timeout: 30000 // 30 second timeout
@@ -35,7 +36,7 @@ const generateLuaCode = async (prompt, gameTree, requestSize, mode = 'direct_edi
 
         return processEnhancedResponse(aiResponse, gameTree, mode);
     } catch (error) {
-        logger.error('Error calling Deepseek:', error.message);
+        logger.error('Error calling OpenRouter:', error.message);
         if (error.response) {
             logger.error('Response status:', error.response.status);
             logger.error('Response data:', error.response.data);
