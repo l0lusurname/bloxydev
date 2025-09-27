@@ -3,3 +3,114 @@
 {"level":"warn","message":"Port 3000 is busy, trying 30001...","timestamp":"2025-09-21T09:27:11.053Z"}
 {"level":"info","message":"Server is running on port 30001","timestamp":"2025-09-21T09:27:11.063Z"}
 {"level":"info","message":"Server is running on port 3000","timestamp":"2025-09-21T09:33:23.995Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:00:24.453Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:00:25.888Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:00:31.579Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:00:32.179Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:00:42.160Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:00:42.793Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T17:01:00.333Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:01:00.941Z"}
+{"level":"info","message":"GET /api/credits/balance","timestamp":"2025-09-21T17:01:10.127Z"}
+{"level":"info","message":"POST /api/checkpoint/save","timestamp":"2025-09-21T17:01:10.987Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:03:53.681Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:10:32.649Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:18:51.069Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:18:52.221Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:19:10.016Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:19:10.606Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:19:22.984Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:20:33.276Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:20:33.971Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:20:48.934Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:20:49.549Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:21:04.323Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:21:04.883Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:21:06.233Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:21:06.779Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:21:17.320Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:26.212Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:26.825Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:27.472Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:28.270Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:35.080Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:35.735Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:22:37.025Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:22:37.619Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:22:52.109Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:25:22.739Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:48:43.867Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:48:44.393Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T17:48:57.634Z"}
+{"level":"info","message":"GET /api/test","timestamp":"2025-09-21T17:48:58.140Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:54:49.502Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:56:53.212Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:56:53.945Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:57:45.258Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:57:45.927Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:57:56.288Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:57:56.958Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:58:18.581Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:58:19.278Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:58:48.013Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:58:49.543Z"}
+{"level":"info","message":"GET /","timestamp":"2025-09-21T17:58:50.313Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:59:04.909Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T17:59:05.808Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:09:13.833Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T18:20:26.286Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:20:28.054Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T18:20:48.172Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:20:50.178Z"}
+{"level":"info","message":"Executing create operation:","timestamp":"2025-09-21T18:20:50.180Z"}
+{"level":"info","message":"Creation operation completed","timestamp":"2025-09-21T18:20:50.181Z"}
+{"intent":"create","level":"info","message":"AI chat request processed: create a script for me","timestamp":"2025-09-21T18:20:50.181Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:01.624Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:12.211Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:16.224Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:26:58.941Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:10.274Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:13.460Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:17.405Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:27:21.239Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:27:47.780Z"}
+{"level":"info","message":"Executing create operation:","timestamp":"2025-09-21T18:27:47.783Z"}
+{"level":"error","message":"Error calling OpenRouter: 401 No auth credentials found","status":401,"timestamp":"2025-09-21T18:27:47.952Z"}
+{"level":"error","message":"Error in create operation: Failed to generate code: 401 No auth credentials found","stack":"Error: Failed to generate code: 401 No auth credentials found\n    at generateLuaCode (/home/runner/workspace/src/services/aiService.js:68:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async executeCreateOperation (/home/runner/workspace/src/services/aiService.js:360:31)\n    at async processAIRequest (/home/runner/workspace/src/services/aiService.js:308:13)\n    at async handleChat (/home/runner/workspace/src/controllers/aiController.js:33:28)","timestamp":"2025-09-21T18:27:47.954Z"}
+{"intent":"create","level":"info","message":"AI chat request processed: create a large complex tower defense game script with multiple enemy types, towers, and wave system","timestamp":"2025-09-21T18:27:47.954Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:27:48.264Z"}
+{"level":"info","message":"Executing edit operation:","timestamp":"2025-09-21T18:27:48.265Z"}
+{"level":"error","message":"Error calling OpenRouter: 401 No auth credentials found","status":401,"timestamp":"2025-09-21T18:27:48.469Z"}
+{"level":"error","message":"Error in edit operation: Failed to generate code: 401 No auth credentials found","stack":"Error: Failed to generate code: 401 No auth credentials found\n    at generateLuaCode (/home/runner/workspace/src/services/aiService.js:68:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async executeEditOperation (/home/runner/workspace/src/services/aiService.js:382:31)\n    at async processAIRequest (/home/runner/workspace/src/services/aiService.js:315:13)\n    at async handleChat (/home/runner/workspace/src/controllers/aiController.js:33:28)","timestamp":"2025-09-21T18:27:48.476Z"}
+{"intent":"edit","level":"info","message":"AI chat request processed: edit the player health property to 200","timestamp":"2025-09-21T18:27:48.476Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T18:28:24.557Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:32:29.590Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:32:35.363Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:32:38.340Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:32:44.540Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:33:05.507Z"}
+{"level":"info","message":"Executing edit operation:","timestamp":"2025-09-21T18:33:05.512Z"}
+{"level":"error","message":"Error calling OpenRouter: 401 No auth credentials found","status":401,"timestamp":"2025-09-21T18:33:05.671Z"}
+{"level":"error","message":"Error in edit operation: Failed to generate code: 401 No auth credentials found","stack":"Error: Failed to generate code: 401 No auth credentials found\n    at generateLuaCode (/home/runner/workspace/src/services/aiService.js:68:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async executeEditOperation (/home/runner/workspace/src/services/aiService.js:402:31)\n    at async processAIRequest (/home/runner/workspace/src/services/aiService.js:335:13)\n    at async handleChat (/home/runner/workspace/src/controllers/aiController.js:33:28)","timestamp":"2025-09-21T18:33:05.672Z"}
+{"intent":"edit","level":"info","message":"AI chat request processed: edit a textlabel to have red text color","timestamp":"2025-09-21T18:33:05.672Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:33:07.645Z"}
+{"intent":"logs","level":"info","message":"AI chat request processed: read the logs","timestamp":"2025-09-21T18:33:07.648Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:34:20.281Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:34:26.141Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:34:29.755Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:34:35.114Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:34:56.470Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:35:21.364Z"}
+{"level":"info","message":"POST /api/ai/chat","timestamp":"2025-09-21T18:35:23.715Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:46:42.886Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T18:46:45.303Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:48:18.811Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:48:31.245Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:48:39.149Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:48:45.064Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:48:46.523Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:51:15.167Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T18:56:29.045Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T19:06:34.051Z"}
+{"level":"info","message":"GET /health","timestamp":"2025-09-21T19:06:36.900Z"}
+{"level":"info","message":"Server is running on 0.0.0.0:3000","timestamp":"2025-09-21T19:14:52.916Z"}

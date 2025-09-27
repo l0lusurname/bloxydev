@@ -13,7 +13,10 @@ const checkpointRoutes = require('./routes/checkpoint');
 const creditRoutes = require('./routes/credits');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
+
+// Trust proxy for Replit environment (configure for specific proxy setup)
+app.set('trust proxy', 'loopback');
 
 // Middleware
 app.use(helmet());
@@ -34,7 +37,8 @@ app.use((req, res, next) => {
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+    max: 100, // limit each IP to 100 requests per windowMs
+    trustProxy: 'loopback' // Trust only loopback proxies
 });
 app.use(limiter);
 
@@ -65,11 +69,11 @@ app.get('/api/test', (req, res) => {
 });
 
 // Start server
-const server = app.listen(port)
+const server = app.listen(port, '0.0.0.0')
     .on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
             logger.warn(`Port ${port} is busy, trying ${port + 1}...`);
-            server.listen(port + 1);
+            server.listen(port + 1, '0.0.0.0');
         } else {
             logger.error('Server error:', err);
             process.exit(1);
@@ -77,5 +81,5 @@ const server = app.listen(port)
     })
     .on('listening', () => {
         const address = server.address();
-        logger.info(`Server is running on port ${address.port}`);
+        logger.info(`Server is running on ${address.address}:${address.port}`);
     });
