@@ -258,6 +258,7 @@ router.get('/info', authenticate, (req, res) => {
             'SpawnLocation', 'Decal', 'SurfaceGui', 'BillboardGui'
         ]
     });
+    
 });
 
 module.exports = router;
