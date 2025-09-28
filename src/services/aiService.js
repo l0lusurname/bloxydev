@@ -46,88 +46,64 @@ const generateLuaCode = async (prompt, gameTree, requestSize, mode = 'direct_edi
 };
 
 const getSystemPrompt = (mode) => {
-    const basePrompt = `You are an expert Roblox Studio AI assistant that can directly manipulate game instances and scripts. You understand the full Roblox API and can perform precise operations.
+    const basePrompt = `You are an expert Roblox Studio AI assistant. You understand the Roblox API and Lua scripting.
 
-CRITICAL: You must respond with valid JSON only. No additional text or explanations outside the JSON structure.`;
+CRITICAL: You must respond with ONLY valid JSON. No markdown code blocks, no explanations, just pure JSON.`;
 
     if (mode === 'direct_edit') {
         return basePrompt + `
 
-Your job is to perform DIRECT EDITS to existing instances and scripts without creating new scripts unless absolutely necessary. You can:
-1. Modify properties of existing instances (Vector3, UDim2, Color3, CFrame, numbers, booleans, strings)
-2. Edit specific lines of existing scripts (replace, insert, delete lines)
-3. Delete instances when requested
-4. Create new instances only if specifically requested
+Perform direct edits to existing instances and scripts. Use this JSON format:
 
-Response format:
 {
     "operations": [
         {
             "type": "modify_instance",
-            "path": ["Workspace", "Part1"],
+            "path": ["Workspace", "PartName"],
             "properties": {
+                "BrickColor": "Really red",
                 "Size": {"type": "Vector3", "value": "10,1,10"},
-                "Color": {"type": "Color3", "value": "1,0,0"},
-                "Material": "Neon",
                 "Anchored": true
             }
         },
         {
-            "type": "edit_script",
-            "path": ["ServerScriptService", "MyScript"],
-            "modifications": [
-                {
-                    "action": "replace",
-                    "lineNumber": 5,
-                    "newContent": "    print('Modified line')"
-                },
-                {
-                    "action": "insert",
-                    "lineNumber": 10,
-                    "content": "    -- New functionality added"
-                },
-                {
-                    "action": "delete",
-                    "lineNumber": 15
-                }
-            ]
-        },
-        {
             "type": "delete_instance",
-            "path": ["Workspace", "ObsoleteModel"]
+            "path": ["Workspace", "ItemToDelete"]
         }
     ],
-    "summary": "Brief description of changes made"
+    "summary": "Brief description"
 }
 
-Be extremely precise with paths and property types. Use minimal operations to achieve the goal.`;
+For bulk operations like "delete all parts", create one delete_instance operation for each part you want to remove.`;
     } else {
         return basePrompt + `
 
-Your job is to generate new scripts and instances when direct editing isn't suitable.
+Create new scripts and instances. Use this JSON format:
 
-Response format:
 {
     "scripts": [
         {
-            "type": "Script|LocalScript|ModuleScript",
-            "name": "ScriptName",
-            "path": ["Service", "Folder"],
-            "source": "-- Complete Lua code here"
+            "type": "Script",
+            "name": "HelloWorld",
+            "path": ["ServerScriptService"],
+            "source": "print('Hello World!')"
         }
     ],
     "instances": [
         {
-            "className": "Part|Model|etc",
-            "name": "InstanceName", 
-            "path": ["Parent1", "Parent2"],
+            "className": "Part",
+            "name": "MyPart",
+            "path": ["Workspace"],
             "properties": {
-                "Size": {"type": "Vector3", "value": "1,2,3"},
-                "Position": {"type": "Vector3", "value": "0,5,0"}
+                "Size": {"type": "Vector3", "value": "4,1,2"},
+                "BrickColor": "Bright blue"
             }
         }
-    ]
-}`;
+    ],
+    "summary": "Brief description"
+}
+
+For scripts, use complete Lua code. For instances, include all necessary properties.`;
     }
 };
 
@@ -142,9 +118,15 @@ const formatEnhancedPrompt = (prompt, gameTree, selectedInstances, mode) => {
         });
     }
 
-    // Add relevant game tree context (optimized)
-    formattedPrompt += `\nGame Structure Context:\n`;
-    formattedPrompt += formatGameTreeContext(gameTree, prompt);
+    // Add very limited game tree context to avoid token overflow
+    formattedPrompt += `\nGame Structure Context (summary):\n`;
+    
+    // Only add essential context, heavily summarized
+    if (gameTree.Workspace && gameTree.Workspace.Children) {
+        const partCount = countInstancesByClass(gameTree.Workspace, 'Part');
+        const modelCount = countInstancesByClass(gameTree.Workspace, 'Model');
+        formattedPrompt += `Workspace contains: ${partCount} Parts, ${modelCount} Models\n`;
+    }
 
     // Add operation-specific instructions
     if (mode === 'direct_edit') {
@@ -158,6 +140,8 @@ Examples of what you should do:
 - "fix script error on line 25" → edit specific line in script
 
 Focus on minimal, precise changes that directly address the request.`;
+    } else {
+        formattedPrompt += `\nCreate new scripts and instances for this request. Place scripts in appropriate services like ServerScriptService or ReplicatedStorage.`;
     }
 
     return formattedPrompt;
@@ -175,9 +159,10 @@ const formatGameTreeContext = (gameTree, prompt) => {
 
     let context = '';
 
+    // Limit context to prevent token overflow - be very selective
     if (needsWorkspace && gameTree.Workspace) {
-        context += 'Workspace Contents:\n';
-        context += formatInstanceTree(gameTree.Workspace, 2);
+        context += 'Workspace Contents (summary):\n';
+        context += formatInstanceTreeSummary(gameTree.Workspace);
     }
 
     if (needsScripts) {
@@ -186,18 +171,45 @@ const formatGameTreeContext = (gameTree, prompt) => {
                 const scripts = findScriptsInTree(gameTree[service]);
                 if (scripts.length > 0) {
                     context += `\n${service} Scripts:\n`;
-                    scripts.forEach(script => {
+                    scripts.slice(0, 3).forEach(script => { // Limit to 3 scripts per service
                         context += `- ${script.name} (${script.type})\n`;
-                        if (script.source) {
-                            context += `  Source preview: ${script.source.substring(0, 200)}...\n`;
-                        }
                     });
+                    if (scripts.length > 3) {
+                        context += `... and ${scripts.length - 3} more scripts\n`;
+                    }
                 }
             }
         });
     }
 
+    // Hard limit context to 1000 characters to prevent token overflow
+    if (context.length > 1000) {
+        context = context.substring(0, 997) + '...';
+    }
+
     return context;
+};
+
+const formatInstanceTreeSummary = (instance, maxItems = 5, currentCount = 0) => {
+    if (currentCount >= maxItems) return '';
+
+    let result = `- ${instance.Name} (${instance.ClassName})\n`;
+    let count = 1;
+
+    if (instance.Children && instance.Children.length > 0) {
+        // Only show first few children to avoid token overflow
+        const childrenToShow = Math.min(3, instance.Children.length);
+        for (let i = 0; i < childrenToShow && count < maxItems; i++) {
+            const child = instance.Children[i];
+            result += `  - ${child.Name} (${child.ClassName})\n`;
+            count++;
+        }
+        if (instance.Children.length > childrenToShow) {
+            result += `  ... and ${instance.Children.length - childrenToShow} more items\n`;
+        }
+    }
+
+    return result;
 };
 
 const formatInstanceTree = (instance, maxDepth, currentDepth = 0) => {
@@ -224,6 +236,22 @@ const formatInstanceTree = (instance, maxDepth, currentDepth = 0) => {
     }
 
     return result;
+};
+
+const countInstancesByClass = (instance, className) => {
+    let count = 0;
+    
+    if (instance.ClassName === className) {
+        count++;
+    }
+    
+    if (instance.Children && Array.isArray(instance.Children)) {
+        instance.Children.forEach(child => {
+            count += countInstancesByClass(child, className);
+        });
+    }
+    
+    return count;
 };
 
 const findScriptsInTree = (instance) => {
