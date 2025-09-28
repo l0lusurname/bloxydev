@@ -11,7 +11,7 @@ const generateLuaCode = async (prompt, gameTree, requestSize, mode = 'direct_edi
         logger.info(`Generating code in ${mode} mode for prompt: ${prompt.substring(0, 100)}...`);
 
         const response = await axios.post(OPENROUTER_API_URL, {
-            model: "qwen/qwen-2.5-coder-32b-instruct:free", // Updated to use Qwen2.5 Coder 32B
+            model: "qwen/qwen-2.5-coder-32b-instruct:free",
             messages: [{
                 role: "system",
                 content: systemPrompt
@@ -23,12 +23,12 @@ const generateLuaCode = async (prompt, gameTree, requestSize, mode = 'direct_edi
             max_tokens: getMaxTokens(requestSize)
         }, {
             headers: {
-                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`, // Keeping same API key name
+                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 'HTTP-Referer': process.env.SITE_URL || 'https://your-app.com',
                 'X-Title': process.env.SITE_NAME || 'Roblox AI Assistant',
                 'Content-Type': 'application/json'
             },
-            timeout: 30000 // 30 second timeout
+            timeout: 30000
         });
 
         const aiResponse = response.data.choices[0].message.content;
@@ -53,28 +53,65 @@ CRITICAL: You must respond with ONLY valid JSON. No markdown code blocks, no exp
     if (mode === 'direct_edit') {
         return basePrompt + `
 
-Perform direct edits to existing instances and scripts. Use this JSON format:
+You are in DIRECT EDIT mode. This means you should ONLY modify existing instances and scripts, NOT create new ones.
+
+For SCRIPT MODIFICATION requests (like "modify the script", "edit the script", "add to the script"):
+- Find the existing script by name in ServerScriptService
+- Modify its Source property with the new/updated code
+- DO NOT create any new parts or instances
+- Include the COMPLETE updated script code
+
+Use this JSON format for script modifications:
 
 {
     "operations": [
         {
             "type": "modify_instance",
+            "path": ["ServerScriptService", "ScriptName"],
+            "properties": {
+                "Source": "-- Complete updated script code here\\nlocal function newFunction()\\n    -- your code\\nend\\n\\n-- rest of the script"
+            }
+        }
+    ],
+    "summary": "Modified existing script"
+}
+
+For INSTANCE PROPERTY changes (like "make red", "resize", "move"):
+{
+    "operations": [
+        {
+            "type": "modify_instance", 
             "path": ["Workspace", "PartName"],
             "properties": {
                 "BrickColor": "Really red",
-                "Size": {"type": "Vector3", "value": "10,1,10"},
-                "Anchored": true
+                "Size": {"type": "Vector3", "value": "10,1,10"}
             }
-        },
-        {
-            "type": "delete_instance",
-            "path": ["Workspace", "ItemToDelete"]
         }
     ],
-    "summary": "Brief description"
+    "summary": "Modified instance properties"
 }
 
+For DELETIONS:
+{
+    "operations": [
+        {
+            "type": "delete_instance",
+            "path": ["Workspace", "PartName"]
+        }
+    ],
+    "summary": "Deleted instance"
+}
+
+IMPORTANT RULES FOR SCRIPT MODIFICATION:
+1. If prompt mentions "modify/edit/change" + "script" = modify existing script Source
+2. If prompt mentions "the script" = find and modify existing script
+3. When modifying a script, provide the COMPLETE updated script code
+4. DO NOT create new instances unless explicitly asked to CREATE something new
+5. Script modifications should preserve existing functionality and add new features
+6. Use proper Lua syntax and Roblox API calls
+
 For bulk operations like "delete all parts", create one delete_instance operation for each part you want to remove.`;
+
     } else {
         return basePrompt + `
 
@@ -100,7 +137,7 @@ Create new scripts and instances. Use this JSON format:
             }
         }
     ],
-    "summary": "Brief description"
+    "summary": "Created new scripts and instances"
 }
 
 For scripts, use complete Lua code. For instances, include all necessary properties.`;
@@ -109,6 +146,52 @@ For scripts, use complete Lua code. For instances, include all necessary propert
 
 const formatEnhancedPrompt = (prompt, gameTree, selectedInstances, mode) => {
     let formattedPrompt = `User Request: ${prompt}\n\nMode: ${mode}\n`;
+
+    // Add context about existing scripts when in direct_edit mode
+    if (mode === 'direct_edit') {
+        formattedPrompt += `\nEXISTING SCRIPTS IN SERVERSCRIPTSERVICE:\n`;
+        
+        // List existing scripts from game tree
+        if (gameTree.ServerScriptService && gameTree.ServerScriptService.Children) {
+            const scripts = findScriptsInChildren(gameTree.ServerScriptService.Children);
+            if (scripts.length > 0) {
+                scripts.forEach(script => {
+                    formattedPrompt += `- ${script.name} (${script.type})\n`;
+                });
+            } else {
+                formattedPrompt += `- No scripts found\n`;
+            }
+        } else {
+            formattedPrompt += `- ServerScriptService not found in game tree\n`;
+        }
+
+        // Add existing parts context
+        if (gameTree.Workspace && gameTree.Workspace.Children) {
+            const parts = findPartsInChildren(gameTree.Workspace.Children);
+            if (parts.length > 0) {
+                formattedPrompt += `\nEXISTING PARTS IN WORKSPACE:\n`;
+                parts.slice(0, 10).forEach(part => { // Limit to 10 for brevity
+                    formattedPrompt += `- ${part.name} (${part.type})\n`;
+                });
+                if (parts.length > 10) {
+                    formattedPrompt += `... and ${parts.length - 10} more parts\n`;
+                }
+            }
+        }
+
+        formattedPrompt += `\nIMPORTANT FOR SCRIPT MODIFICATION:
+- If user says "modify the script" or "edit the script", find the existing script by name from the list above
+- Replace the entire Source property with the updated code that includes both old and new functionality
+- DO NOT create new parts or instances unless specifically requested
+- The script modification should include the COMPLETE updated script code, not just additions
+- If modifying game behavior (like making parts kill players), update the existing game script
+
+Examples:
+- "modify the FallingPartsGenerator script and make parts kill players" → Find existing FallingPartsGenerator script, update its Source to include kill functionality while keeping falling parts
+- "edit the script to make parts bigger" → Find existing script, modify the part creation code to use larger sizes
+- "change the script to spawn parts faster" → Update the existing script's timing/spawn rate
+`;
+    }
 
     // Add selected instances context
     if (selectedInstances && selectedInstances.length > 0) {
@@ -130,16 +213,7 @@ const formatEnhancedPrompt = (prompt, gameTree, selectedInstances, mode) => {
 
     // Add operation-specific instructions
     if (mode === 'direct_edit') {
-        formattedPrompt += `\nIMPORTANT: Perform direct modifications to existing instances. Do not create scripts unless absolutely necessary.
-        
-Examples of what you should do:
-- "make all parts red" → modify Color property of existing parts
-- "delete spawn locations" → delete SpawnLocation instances
-- "resize selected part" → modify Size property of selected instance
-- "anchor all parts" → modify Anchored property of parts
-- "fix script error on line 25" → edit specific line in script
-
-Focus on minimal, precise changes that directly address the request.`;
+        formattedPrompt += `\nREMEMBER: You are in DIRECT EDIT mode. Focus on modifying existing scripts and instances, not creating new ones.`;
     } else {
         formattedPrompt += `\nCreate new scripts and instances for this request. Place scripts in appropriate services like ServerScriptService or ReplicatedStorage.`;
     }
@@ -147,95 +221,50 @@ Focus on minimal, precise changes that directly address the request.`;
     return formattedPrompt;
 };
 
-const formatGameTreeContext = (gameTree, prompt) => {
-    // Analyze prompt to determine what context is needed
-    const needsWorkspace = prompt.toLowerCase().includes('part') || 
-                          prompt.toLowerCase().includes('model') ||
-                          prompt.toLowerCase().includes('spawn');
+// Helper function to find scripts in game tree children
+const findScriptsInChildren = (children) => {
+    const scripts = [];
     
-    const needsScripts = prompt.toLowerCase().includes('script') ||
-                        prompt.toLowerCase().includes('code') ||
-                        prompt.toLowerCase().includes('function');
-
-    let context = '';
-
-    // Limit context to prevent token overflow - be very selective
-    if (needsWorkspace && gameTree.Workspace) {
-        context += 'Workspace Contents (summary):\n';
-        context += formatInstanceTreeSummary(gameTree.Workspace);
-    }
-
-    if (needsScripts) {
-        ['ReplicatedStorage', 'ServerStorage', 'StarterGui'].forEach(service => {
-            if (gameTree[service]) {
-                const scripts = findScriptsInTree(gameTree[service]);
-                if (scripts.length > 0) {
-                    context += `\n${service} Scripts:\n`;
-                    scripts.slice(0, 3).forEach(script => { // Limit to 3 scripts per service
-                        context += `- ${script.name} (${script.type})\n`;
-                    });
-                    if (scripts.length > 3) {
-                        context += `... and ${scripts.length - 3} more scripts\n`;
-                    }
-                }
-            }
-        });
-    }
-
-    // Hard limit context to 1000 characters to prevent token overflow
-    if (context.length > 1000) {
-        context = context.substring(0, 997) + '...';
-    }
-
-    return context;
+    if (!children || !Array.isArray(children)) return scripts;
+    
+    children.forEach(child => {
+        if (child.ClassName === 'Script' || child.ClassName === 'LocalScript' || child.ClassName === 'ModuleScript') {
+            scripts.push({
+                name: child.Name,
+                type: child.ClassName
+            });
+        }
+        
+        // Recursively check children
+        if (child.Children && child.Children.length > 0) {
+            scripts.push(...findScriptsInChildren(child.Children));
+        }
+    });
+    
+    return scripts;
 };
 
-const formatInstanceTreeSummary = (instance, maxItems = 5, currentCount = 0) => {
-    if (currentCount >= maxItems) return '';
-
-    let result = `- ${instance.Name} (${instance.ClassName})\n`;
-    let count = 1;
-
-    if (instance.Children && instance.Children.length > 0) {
-        // Only show first few children to avoid token overflow
-        const childrenToShow = Math.min(3, instance.Children.length);
-        for (let i = 0; i < childrenToShow && count < maxItems; i++) {
-            const child = instance.Children[i];
-            result += `  - ${child.Name} (${child.ClassName})\n`;
-            count++;
-        }
-        if (instance.Children.length > childrenToShow) {
-            result += `  ... and ${instance.Children.length - childrenToShow} more items\n`;
-        }
-    }
-
-    return result;
-};
-
-const formatInstanceTree = (instance, maxDepth, currentDepth = 0) => {
-    if (currentDepth >= maxDepth) return '';
-
-    let result = `${'  '.repeat(currentDepth)}- ${instance.Name} (${instance.ClassName})`;
+// Helper function to find parts in game tree children
+const findPartsInChildren = (children) => {
+    const parts = [];
     
-    if (instance.Properties) {
-        const keyProps = [];
-        if (instance.Properties.Position) keyProps.push(`Pos:${instance.Properties.Position}`);
-        if (instance.Properties.Size) keyProps.push(`Size:${instance.Properties.Size}`);
-        if (instance.Properties.Anchored !== undefined) keyProps.push(`Anchored:${instance.Properties.Anchored}`);
-        if (keyProps.length > 0) {
-            result += ` [${keyProps.join(', ')}]`;
-        }
-    }
+    if (!children || !Array.isArray(children)) return parts;
     
-    result += '\n';
-
-    if (instance.Children && instance.Children.length > 0) {
-        instance.Children.forEach(child => {
-            result += formatInstanceTree(child, maxDepth, currentDepth + 1);
-        });
-    }
-
-    return result;
+    children.forEach(child => {
+        if (child.ClassName === 'Part' || child.ClassName === 'MeshPart' || child.ClassName === 'UnionOperation') {
+            parts.push({
+                name: child.Name,
+                type: child.ClassName
+            });
+        }
+        
+        // Recursively check children (but limit depth)
+        if (child.Children && child.Children.length > 0) {
+            parts.push(...findPartsInChildren(child.Children));
+        }
+    });
+    
+    return parts;
 };
 
 const countInstancesByClass = (instance, className) => {
@@ -288,6 +317,7 @@ const processEnhancedResponse = (aiResponse, gameTree, mode) => {
                 scriptEdits: extractScriptEdits(response.operations),
                 deletions: extractDeletions(response.operations),
                 instances: extractNewInstances(response.operations),
+                operations: response.operations || [], // Include raw operations for client processing
                 summary: response.summary || 'AI operations completed'
             };
         } else {
@@ -306,6 +336,7 @@ const processEnhancedResponse = (aiResponse, gameTree, mode) => {
 };
 
 const extractModifications = (operations) => {
+    if (!operations) return [];
     return operations
         .filter(op => op.type === 'modify_instance')
         .map(op => ({
@@ -315,15 +346,18 @@ const extractModifications = (operations) => {
 };
 
 const extractScriptEdits = (operations) => {
+    if (!operations) return [];
     return operations
         .filter(op => op.type === 'edit_script')
         .map(op => ({
             path: op.path,
-            modifications: op.modifications
+            modifications: op.modifications,
+            newSource: op.newSource
         }));
 };
 
 const extractDeletions = (operations) => {
+    if (!operations) return [];
     return operations
         .filter(op => op.type === 'delete_instance')
         .map(op => ({
@@ -332,6 +366,7 @@ const extractDeletions = (operations) => {
 };
 
 const extractNewInstances = (operations) => {
+    if (!operations) return [];
     return operations
         .filter(op => op.type === 'create_instance')
         .map(op => ({

@@ -4,49 +4,11 @@ local Selection = game:GetService("Selection")
 
 -- AI Assistant Configuration  
 local config = {
-    apiUrl = "https://bloxydev-production.up.railway.app", -- Railway deployment URL
-    apiEndpoint = "/api/ai/generate-public", -- Using public generate endpoint (no auth required)
-    testEndpoint = "/api/test", -- Test endpoint
-    debug = false -- Debug logging disabled by default
+    apiUrl = "https://bloxydev-production.up.railway.app",
+    apiEndpoint = "/api/ai/generate-public",
+    testEndpoint = "/api/test",
+    debug = true -- Enable debug for troubleshooting
 }
-
--- Test server connection on startup
-spawn(function()
-    if config.debug then
-        print("[AI Plugin] Testing connection to:", config.apiUrl)
-        
-        -- Try test endpoint first
-        local success, result = pcall(function()
-            return HttpService:RequestAsync({
-                Url = config.apiUrl .. config.testEndpoint,
-                Method = "GET"
-            }).Body
-        end)
-        
-        if success then
-            local data = HttpService:JSONDecode(result)
-            print("[AI Plugin] Server test successful:", data.message)
-            print("[AI Plugin] Available endpoints:", HttpService:JSONEncode(data.endpoints))
-        else
-            print("[AI Plugin] Test endpoint failed, trying health check...")
-            
-            -- Try health check
-            local healthSuccess, healthResult = pcall(function()
-                return HttpService:RequestAsync({
-                    Url = config.apiUrl .. "/health",
-                    Method = "GET"
-                }).Body
-            end)
-            
-            if healthSuccess then
-                print("[AI Plugin] Health check successful")
-            else
-                warn("[AI Plugin] Connection failed:", healthResult)
-                warn("[AI Plugin] Make sure the server is running and the URL is correct")
-            end
-        end
-    end
-end)
 
 -- AI Assistant Plugin for Roblox Studio
 local PluginName = "AI Dev Assistant"
@@ -54,9 +16,9 @@ local PluginName = "AI Dev Assistant"
 -- Create the plugin toolbar and button
 local toolbar = plugin:CreateToolbar(PluginName)
 local toggleButton = toolbar:CreateButton(
-    "AI Assistant 1.0 [SEX VERSION]",
+    "AI Assistant 1.0",
     "Open AI Assistant",
-    "rbxassetid://4458901886" -- Default script icon
+    "rbxassetid://4458901886"
 )
 
 -- Create the plugin widget
@@ -133,96 +95,229 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 6)
 corner.Parent = submitButton
 
--- Load utilities module (safe require). Utilities expect the UI objects (scrollFrame, listLayout, promptBox, submitButton)
--- to exist when their functions are called, so require after UI creation.
-local utilities
-pcall(function()
-    -- Try common require paths used in plugin structure
-    if script and script.Parent and script.Parent:FindFirstChild("utilities") then
-        utilities = require(script.Parent:FindFirstChild("utilities"))
-    elseif plugin and plugin:FindFirstChild("utilities") then
-        utilities = require(plugin:FindFirstChild("utilities"))
+-- UI Functions
+local function addMessage(message, isError)
+    local messageFrame = Instance.new("Frame")
+    messageFrame.Size = UDim2.new(1, 0, 0, 40)
+    messageFrame.BackgroundColor3 = isError and Color3.fromRGB(255, 240, 240) or Color3.fromRGB(240, 255, 240)
+    messageFrame.BorderSizePixel = 0
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = messageFrame
+    
+    local messageText = Instance.new("TextLabel")
+    messageText.Size = UDim2.new(1, -20, 1, 0)
+    messageText.Position = UDim2.new(0, 10, 0, 0)
+    messageText.BackgroundTransparency = 1
+    messageText.Text = message
+    messageText.TextColor3 = isError and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(0, 100, 0)
+    messageText.TextXAlignment = Enum.TextXAlignment.Left
+    messageText.TextWrapped = true
+    messageText.Font = Enum.Font.Gotham
+    messageText.TextSize = 14
+    messageText.Parent = messageFrame
+    
+    messageFrame.Parent = scrollFrame
+    messageFrame.LayoutOrder = #scrollFrame:GetChildren()
+    
+    -- Update canvas size
+    local totalHeight = 0
+    for _, child in ipairs(scrollFrame:GetChildren()) do
+        if child:IsA("Frame") then
+            totalHeight = totalHeight + child.Size.Y.Offset + listLayout.Padding.Offset
+        end
     end
-end)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+    
+    -- Scroll to bottom
+    scrollFrame.CanvasPosition = Vector2.new(0, totalHeight)
+    
+    return messageFrame
+end
 
--- Safe local bindings with fallbacks to prevent nil calls
-local addMessage = (utilities and utilities.addMessage) or function(msg, isError)
-    if isError then
-        warn("AI Plugin - ", tostring(msg))
+local function setLoadingState(isLoading)
+    submitButton.Text = isLoading and "Generating..." or "Generate Code"
+    submitButton.Active = not isLoading
+    promptBox.Active = not isLoading
+    
+    -- Visual feedback for disabled state
+    if isLoading then
+        submitButton.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+        promptBox.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
     else
-        print("AI Plugin - ", tostring(msg))
+        submitButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        promptBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     end
 end
 
-local setLoadingState = (utilities and utilities.setLoadingState) or function(_) end
+-- Test server connection on startup
+spawn(function()
+    print("[AI Plugin] Testing connection to:", config.apiUrl)
+    
+    -- Try test endpoint first
+    local success, result = pcall(function()
+        return HttpService:RequestAsync({
+            Url = config.apiUrl .. config.testEndpoint,
+            Method = "GET"
+        }).Body
+    end)
+    
+    if success then
+        local data = HttpService:JSONDecode(result)
+        print("[AI Plugin] Server test successful:", data.message)
+        addMessage("Connected to AI server successfully!", false)
+    else
+        print("[AI Plugin] Test endpoint failed, trying health check...")
+        
+        -- Try health check
+        local healthSuccess, healthResult = pcall(function()
+            return HttpService:RequestAsync({
+                Url = config.apiUrl .. "/health",
+                Method = "GET"
+            }).Body
+        end)
+        
+        if healthSuccess then
+            print("[AI Plugin] Health check successful")
+            addMessage("Connected to AI server!", false)
+        else
+            warn("[AI Plugin] Connection failed:", healthResult)
+            addMessage("Warning: Could not connect to AI server", true)
+        end
+    end
+end)
 
--- Function to get the game tree
-local function getGameTree()
-    local function serializeInstance(instance)
+-- Smart game tree function
+local function getSmartGameTree(prompt, selectedInstances)
+    prompt = prompt:lower()
+    
+    local function getBasicInfo(instance, maxDepth)
+        maxDepth = maxDepth or 2
+        if maxDepth <= 0 then return nil end
+        
         local result = {
             Name = instance.Name,
             ClassName = instance.ClassName,
             Children = {}
         }
         
-        -- Serialize relevant properties based on class
         if instance:IsA("BasePart") then
             result.Properties = {
-                Position = tostring(instance.Position),
                 Size = tostring(instance.Size),
-                CFrame = tostring(instance.CFrame)
-            }
-        elseif instance:IsA("Script") or instance:IsA("LocalScript") or instance:IsA("ModuleScript") then
-            result.Properties = {
-                Source = instance.Source
+                Anchored = instance.Anchored,
+                BrickColor = tostring(instance.BrickColor)
             }
         end
         
-        -- Recursively serialize children
+        if instance:IsA("Script") or instance:IsA("LocalScript") or instance:IsA("ModuleScript") then
+            result.Properties = {
+                HasSource = instance.Source ~= ""
+            }
+        end
+        
+        local childCount = 0
         for _, child in ipairs(instance:GetChildren()) do
-            table.insert(result.Children, serializeInstance(child))
+            childCount = childCount + 1
+            if childCount <= 10 then
+                local childInfo = getBasicInfo(child, maxDepth - 1)
+                if childInfo then
+                    table.insert(result.Children, childInfo)
+                end
+            else
+                table.insert(result.Children, {
+                    Name = "...",
+                    ClassName = "MoreItems",
+                    Note = (#instance:GetChildren() - 10) .. " more items"
+                })
+                break
+            end
         end
         
         return result
     end
     
-    return {
-        Workspace = serializeInstance(game.Workspace),
-        StarterGui = serializeInstance(game.StarterGui),
-        ReplicatedStorage = serializeInstance(game.ReplicatedStorage),
-        ServerStorage = serializeInstance(game.ServerStorage),
-        Players = serializeInstance(game.Players),
-        Lighting = serializeInstance(game.Lighting)
+    local gameTree = {}
+    
+    -- ALWAYS include Workspace since server validation requires it
+    gameTree.Workspace = getBasicInfo(game.Workspace, 2)
+    
+    local needsScripts = prompt:find("script") or prompt:find("code") or
+                        prompt:find("function") or prompt:find("hello world")
+    
+    local needsGui = prompt:find("gui") or prompt:find("screen") or prompt:find("button")
+    
+    local needsStorage = prompt:find("storage") or prompt:find("module")
+    
+    if needsScripts then
+        gameTree.ServerScriptService = getBasicInfo(game.ServerScriptService, 1)
+        gameTree.ReplicatedStorage = getBasicInfo(game.ReplicatedStorage, 1)
+    end
+    
+    if needsGui then
+        gameTree.StarterGui = getBasicInfo(game.StarterGui, 1)
+    end
+    
+    if needsStorage then
+        gameTree.ServerStorage = getBasicInfo(game.ServerStorage, 1)
+    end
+    
+    gameTree.Lighting = {
+        Name = "Lighting",
+        ClassName = "Lighting"
     }
+    
+    if selectedInstances and #selectedInstances > 0 then
+        gameTree.SelectedContext = {}
+        for _, selected in ipairs(selectedInstances) do
+            table.insert(gameTree.SelectedContext, {
+                Name = selected.name,
+                ClassName = selected.className,
+                Path = selected.path
+            })
+        end
+    end
+    
+    gameTree.Summary = {
+        WorkspacePartCount = #game.Workspace:GetChildren(),
+        ScriptServiceScriptCount = #game.ServerScriptService:GetChildren(),
+        PlayerCount = #game.Players:GetPlayers()
+    }
+    
+    return gameTree
 end
 
 -- Function to send request to AI service
 local function requestAIGeneration(prompt)
+    -- Determine the correct mode based on prompt
+    local mode = "auto"
+    local lowerPrompt = prompt:lower()
+    
+    -- Force direct_edit mode for script modification requests
+    if lowerPrompt:find("modify") or lowerPrompt:find("edit") or 
+       lowerPrompt:find("change") or lowerPrompt:find("update") or
+       lowerPrompt:find("fix") or lowerPrompt:find("the script") or
+       lowerPrompt:find("existing script") then
+        mode = "direct_edit"
+        print("[AI Plugin] Using direct_edit mode for script modification")
+    end
+    
+    -- Force script_generation mode for new game/script creation
+    if (lowerPrompt:find("create") or lowerPrompt:find("make") or lowerPrompt:find("new")) and 
+       (lowerPrompt:find("game") or lowerPrompt:find("script")) and
+       not (lowerPrompt:find("modify") or lowerPrompt:find("edit") or lowerPrompt:find("the script")) then
+        mode = "script_generation"
+        print("[AI Plugin] Using script_generation mode for new creation")
+    end
+    
     local data = {
         prompt = prompt,
-        gameTree = getGameTree(),
-        requestSize = "medium" -- Can be configurable later
+        gameTree = getSmartGameTree(prompt, {}),
+        requestSize = "medium",
+        mode = mode
     }
     
-    if config.debug then
-        print("[AI Plugin] Sending request to:", config.apiUrl .. config.apiEndpoint)
-    end
-    
-    -- Test server connection first
-    local testSuccess, testResult = pcall(function()
-        return HttpService:RequestAsync({
-            Url = config.apiUrl .. "/health",
-            Method = "GET"
-        }).Body
-    end)
-    
-    if not testSuccess then
-        if config.debug then
-            print("[AI Plugin] Server connection test failed:", testResult)
-            print("[AI Plugin] Make sure the server is running: npm run start")
-        end
-        return false, "Server is not responding. Make sure it's running (npm run start)"
-    end
+    print("[AI Plugin] Sending request to:", config.apiUrl .. config.apiEndpoint)
     
     local success, result = pcall(function()
         return HttpService:RequestAsync({
@@ -237,20 +332,14 @@ local function requestAIGeneration(prompt)
     
     if success then
         if result.Success then
-            if config.debug then
-                print("[AI Plugin] Request successful")
-            end
+            print("[AI Plugin] Request successful")
             return true, HttpService:JSONDecode(result.Body)
         else
-            if config.debug then
-                print("[AI Plugin] Server returned error:", result.StatusCode, result.Body)
-            end
+            print("[AI Plugin] Server returned error:", result.StatusCode, result.Body)
             return false, "Server error: " .. (result.StatusCode or "unknown") .. " - " .. (result.Body or "")
         end
     else
-        if config.debug then
-            print("[AI Plugin] Request failed:", result)
-        end
+        print("[AI Plugin] Request failed:", result)
         return false, "Failed to connect to AI service: " .. tostring(result)
     end
 end
@@ -273,61 +362,46 @@ end
 -- Function to set instance properties
 local function setInstanceProperties(instance, properties)
     for propName, value in pairs(properties) do
-        -- Handle typed properties from AI service (new format)
         if type(value) == "table" and value.type and value.value then
             if value.type == "Vector3" then
-                instance[propName] = Vector3.new(unpack(value.value))
-            elseif value.type == "Color3" then
-                instance[propName] = Color3.fromRGB(unpack(value.value))
-            elseif value.type == "CFrame" then
-                if #value.value == 3 then
-                    -- Position only
-                    instance[propName] = CFrame.new(unpack(value.value))
-                elseif #value.value == 12 then
-                    -- Full CFrame with rotation matrix
-                    instance[propName] = CFrame.new(unpack(value.value))
-                elseif #value.value == 6 then
-                    -- Position + lookVector
-                    local pos = {value.value[1], value.value[2], value.value[3]}
-                    local look = {value.value[4], value.value[5], value.value[6]}
-                    instance[propName] = CFrame.lookAt(Vector3.new(unpack(pos)), Vector3.new(unpack(look)))
-                end
-            elseif value.type == "UDim2" then
-                instance[propName] = UDim2.new(unpack(value.value))
-            elseif value.type == "Enum" then
-                -- Handle Enum properties like Material, Shape, etc.
                 if type(value.value) == "string" then
-                    -- Parse "Enum.Material.Plastic" or "Material.Plastic" format
-                    local enumStr = value.value
-                    if enumStr:match("^Enum%.") then
-                        -- Extract enum from "Enum.Material.Plastic"
-                        local parts = {}
-                        for part in enumStr:gmatch("[^%.]+") do
-                            table.insert(parts, part)
-                        end
-                        if #parts >= 3 then
-                            -- Enum.Material.Plastic -> Enum.Material.Plastic
-                            local success, enumValue = pcall(function()
-                                return Enum[parts[2]][parts[3]]
-                            end)
-                            if success then
-                                instance[propName] = enumValue
-                            else
-                                instance[propName] = value.value -- fallback to string
-                            end
-                        end
-                    else
-                        -- Fallback: try to set as string
-                        instance[propName] = value.value
+                    local parts = {}
+                    for part in value.value:gmatch("[^,]+") do
+                        table.insert(parts, tonumber(part:match("^%s*(.-)%s*$")))
+                    end
+                    if #parts == 3 then
+                        instance[propName] = Vector3.new(parts[1], parts[2], parts[3])
                     end
                 else
-                    instance[propName] = value.value
+                    instance[propName] = Vector3.new(unpack(value.value))
+                end
+            elseif value.type == "Color3" then
+                if type(value.value) == "string" then
+                    local parts = {}
+                    for part in value.value:gmatch("[^,]+") do
+                        table.insert(parts, tonumber(part:match("^%s*(.-)%s*$")))
+                    end
+                    if #parts == 3 then
+                        instance[propName] = Color3.fromRGB(parts[1], parts[2], parts[3])
+                    end
+                else
+                    instance[propName] = Color3.fromRGB(unpack(value.value))
+                end
+            elseif value.type == "UDim2" then
+                if type(value.value) == "string" then
+                    local parts = {}
+                    for part in value.value:gmatch("[^,]+") do
+                        table.insert(parts, tonumber(part:match("^%s*(.-)%s*$")))
+                    end
+                    if #parts == 4 then
+                        instance[propName] = UDim2.new(parts[1], parts[2], parts[3], parts[4])
+                    end
+                else
+                    instance[propName] = UDim2.new(unpack(value.value))
                 end
             else
-                -- Fallback for unknown typed values
                 instance[propName] = value.value
             end
-        -- Handle legacy raw array properties (backward compatibility)
         elseif type(value) == "table" and type(value[1]) == "number" then
             if #value == 3 then
                 if propName:match("Color") then
@@ -336,194 +410,34 @@ local function setInstanceProperties(instance, properties)
                     instance[propName] = Vector3.new(unpack(value))
                 end
             elseif #value == 4 then
-                -- UDim2 format
                 instance[propName] = UDim2.new(unpack(value))
-            elseif #value == 12 then
-                -- CFrame properties
-                instance[propName] = CFrame.new(unpack(value))
+            end
+        else
+            -- Handle special property types
+            if propName == "BrickColor" and type(value) == "string" then
+                local success, brickColor = pcall(function()
+                    return BrickColor.new(value)
+                end)
+                if success then
+                    instance[propName] = brickColor
+                else
+                    addMessage("Warning: Invalid BrickColor '" .. value .. "', using default", false)
+                    instance[propName] = BrickColor.new("Medium stone grey")
+                end
+            elseif propName == "Material" and type(value) == "string" then
+                local success, material = pcall(function()
+                    return Enum.Material[value]
+                end)
+                if success then
+                    instance[propName] = material
+                else
+                    addMessage("Warning: Invalid Material '" .. value .. "', using default", false)
+                    instance[propName] = Enum.Material.Plastic
+                end
             else
-                -- Direct property assignment for other arrays
                 instance[propName] = value
             end
-        else
-            -- Direct property assignment for simple types
-            instance[propName] = value
         end
-    end
-end
-
--- Function to handle script line operations (read/modify specific lines)
-local function handleScriptLineOperation(operation)
-    if not operation.path or not operation.operation then return end
-    
-    -- Find the script instance
-    local script = game
-    for _, pathPart in ipairs(operation.path) do
-        script = script:FindFirstChild(pathPart)
-        if not script then 
-            addMessage("Could not find script at path: " .. table.concat(operation.path, "/"), true)
-            return 
-        end
-    end
-    
-    -- Ensure it's a script-like object
-    if not (script:IsA("Script") or script:IsA("LocalScript") or script:IsA("ModuleScript")) then
-        addMessage("Object is not a script: " .. script.Name, true)
-        return
-    end
-    
-    -- Split source into lines more safely
-    local lines = {}
-    if script.Source and script.Source ~= "" then
-        for line in (script.Source .. "\n"):gmatch("(.-)\n") do
-            table.insert(lines, line)
-        end
-    end
-    
-    if operation.operation == "read" then
-        -- Read specific line range with proper validation
-        local startLine = math.max(1, operation.lineStart or 1)
-        local endLine = math.min(#lines, operation.lineEnd or #lines)
-        
-        -- Ensure valid range
-        if startLine > endLine then
-            addMessage("Invalid line range: start (" .. startLine .. ") > end (" .. endLine .. ")", true)
-            return
-        end
-        
-        local readLines = {}
-        for i = startLine, endLine do
-            table.insert(readLines, lines[i] or "")
-        end
-        
-        addMessage("Read lines " .. startLine .. "-" .. endLine .. " from " .. script.Name .. ":\n" .. table.concat(readLines, "\n"), false)
-        
-    elseif operation.operation == "modify" and operation.newContent then
-        -- Modify specific line range with proper validation
-        local startLine = math.max(1, operation.lineStart or 1)
-        local endLine = math.min(#lines, operation.lineEnd or startLine)
-        
-        -- Ensure valid range
-        if startLine > endLine then
-            addMessage("Invalid line range: start (" .. startLine .. ") > end (" .. endLine .. ")", true)
-            return
-        end
-        
-        -- Split new content into lines more safely
-        local newContentLines = {}
-        if operation.newContent and operation.newContent ~= "" then
-            for line in (operation.newContent .. "\n"):gmatch("(.-)\n") do
-                table.insert(newContentLines, line)
-            end
-        end
-        
-        -- Remove old lines from end to start to maintain indices
-        for i = endLine, startLine, -1 do
-            table.remove(lines, i)
-        end
-        
-        -- Insert new lines at the starting position
-        for i = #newContentLines, 1, -1 do
-            table.insert(lines, startLine, newContentLines[i])
-        end
-        
-        script.Source = table.concat(lines, "\n")
-        addMessage("Modified lines " .. startLine .. "-" .. endLine .. " in " .. script.Name, false)
-    end
-end
-
--- Function to handle part deletions
-local function handlePartDeletion(deletion)
-    if not deletion.path and not deletion.name and not deletion.className then 
-        addMessage("Deletion requires either path, name, or className", true)
-        return 
-    end
-    
-    if deletion.operation == "single" then
-        -- Delete a single part by path
-        if deletion.path and #deletion.path > 0 then
-            local instance = game
-            for _, pathPart in ipairs(deletion.path) do
-                instance = instance:FindFirstChild(pathPart)
-                if not instance then 
-                    addMessage("Could not find part at path: " .. table.concat(deletion.path, "/"), true)
-                    return 
-                end
-            end
-            
-            local partName = instance.Name
-            instance:Destroy()
-            addMessage("Deleted part: " .. partName, false)
-        else
-            addMessage("Single deletion requires a valid path", true)
-        end
-        
-    elseif deletion.operation == "bulk" then
-        -- Delete all parts with the same name/type within specified scope
-        if not deletion.name and not deletion.className then
-            addMessage("Bulk deletion requires either name or className criteria", true)
-            return
-        end
-        
-        local deletedCount = 0
-        local searchName = deletion.name
-        local searchClassName = deletion.className
-        local deleteAll = deletion.deleteAll or false
-        
-        local function deleteRecursive(parent, depth)
-            -- Add depth limit for safety
-            if depth > 50 then
-                addMessage("Recursion depth limit reached, stopping deletion", true)
-                return
-            end
-            
-            local children = parent:GetChildren()
-            for _, child in ipairs(children) do
-                local shouldDelete = false
-                
-                -- Match criteria based on deleteAll flag
-                if deleteAll then
-                    -- Delete if ANY criteria matches
-                    if (searchName and child.Name == searchName) or
-                       (searchClassName and child.ClassName == searchClassName) then
-                        shouldDelete = true
-                    end
-                else
-                    -- Delete only if ALL specified criteria match
-                    local nameMatches = not searchName or child.Name == searchName
-                    local classMatches = not searchClassName or child.ClassName == searchClassName
-                    shouldDelete = nameMatches and classMatches
-                end
-                
-                if shouldDelete then
-                    local childName = child.Name
-                    local childClass = child.ClassName
-                    child:Destroy()
-                    deletedCount = deletedCount + 1
-                    addMessage("Deleted: " .. childName .. " (" .. childClass .. ")", false)
-                else
-                    -- Continue recursing only if not deleted
-                    deleteRecursive(child, depth + 1)
-                end
-            end
-        end
-        
-        -- Determine starting point with proper scope limiting
-        local startPoint = game.Workspace -- Default scope
-        if deletion.path and #deletion.path > 0 then
-            startPoint = game
-            for _, pathPart in ipairs(deletion.path) do
-                startPoint = startPoint:FindFirstChild(pathPart)
-                if not startPoint then 
-                    addMessage("Could not find starting path: " .. table.concat(deletion.path, "/"), true)
-                    return 
-                end
-            end
-        end
-        
-        addMessage("Starting bulk deletion from: " .. startPoint:GetFullName(), false)
-        deleteRecursive(startPoint, 0)
-        addMessage("Bulk deletion complete: " .. deletedCount .. " objects deleted", false)
     end
 end
 
@@ -531,42 +445,117 @@ end
 local function applyGeneratedCode(codeData)
     if not codeData then return end
     
-    -- Create or modify scripts
-    if codeData.scripts then
-        for _, scriptData in ipairs(codeData.scripts) do
-            local targetParent = findOrCreatePath(game, scriptData.path)
-            if targetParent then
-                local newScript = Instance.new(scriptData.type)
-                newScript.Name = scriptData.name
-                newScript.Source = scriptData.source
-                newScript.Parent = targetParent
+    -- Handle script operations (modifications to existing scripts)
+    if codeData.operations then
+        for _, operation in ipairs(codeData.operations) do
+            if operation.type == "modify_instance" and operation.path then
+                -- Find the instance to modify
+                local instance = game
+                for _, pathPart in ipairs(operation.path) do
+                    instance = instance:FindFirstChild(pathPart)
+                    if not instance then 
+                        addMessage("Could not find instance at path: " .. table.concat(operation.path, "/"), true)
+                        break
+                    end
+                end
+                
+                if instance and operation.properties then
+                    -- Check if this is a script modification
+                    if instance:IsA("Script") or instance:IsA("LocalScript") or instance:IsA("ModuleScript") then
+                        if operation.properties.Source then
+                            instance.Source = operation.properties.Source
+                            addMessage("Modified script: " .. instance.Name, false)
+                        end
+                    else
+                        -- Regular property modification
+                        setInstanceProperties(instance, operation.properties)
+                        addMessage("Modified instance: " .. instance.Name, false)
+                    end
+                end
+            elseif operation.type == "edit_script" and operation.path then
+                -- Handle specific script editing operations
+                local script = game
+                for _, pathPart in ipairs(operation.path) do
+                    script = script:FindFirstChild(pathPart)
+                    if not script then 
+                        addMessage("Could not find script at path: " .. table.concat(operation.path, "/"), true)
+                        break
+                    end
+                end
+                
+                if script and (script:IsA("Script") or script:IsA("LocalScript") or script:IsA("ModuleScript")) then
+                    if operation.newSource then
+                        script.Source = operation.newSource
+                        addMessage("Edited script: " .. script.Name, false)
+                    elseif operation.modifications then
+                        -- Handle line-by-line modifications
+                        local lines = {}
+                        if script.Source and script.Source ~= "" then
+                            for line in (script.Source .. "\n"):gmatch("(.-)\n") do
+                                table.insert(lines, line)
+                            end
+                        end
+                        
+                        for _, mod in ipairs(operation.modifications) do
+                            if mod.action == "replace" and mod.lineNumber and mod.newContent then
+                                if lines[mod.lineNumber] then
+                                    lines[mod.lineNumber] = mod.newContent
+                                end
+                            elseif mod.action == "insert" and mod.lineNumber and mod.content then
+                                table.insert(lines, mod.lineNumber, mod.content)
+                            elseif mod.action == "append" and mod.content then
+                                table.insert(lines, mod.content)
+                            end
+                        end
+                        
+                        script.Source = table.concat(lines, "\n")
+                        addMessage("Applied modifications to script: " .. script.Name, false)
+                    end
+                end
+            elseif operation.type == "delete_instance" and operation.path then
+                -- Handle deletions
+                local instance = game
+                for _, pathPart in ipairs(operation.path) do
+                    instance = instance:FindFirstChild(pathPart)
+                    if not instance then 
+                        addMessage("Could not find instance to delete at path: " .. table.concat(operation.path, "/"), true)
+                        break
+                    end
+                end
+                
+                if instance then
+                    local instanceName = instance.Name
+                    instance:Destroy()
+                    addMessage("Deleted instance: " .. instanceName, false)
+                end
             end
         end
     end
     
-    -- Handle line-range script operations
+    -- Handle script operations (legacy format)
     if codeData.scriptOperations then
         for _, operation in ipairs(codeData.scriptOperations) do
-            handleScriptLineOperation(operation)
-        end
-    end
-    
-    -- Create new instances
-    if codeData.instances then
-        for _, instanceData in ipairs(codeData.instances) do
-            local targetParent = findOrCreatePath(game, instanceData.path)
-            if targetParent then
-                local newInstance = Instance.new(instanceData.className)
-                newInstance.Name = instanceData.name
-                if instanceData.properties then
-                    setInstanceProperties(newInstance, instanceData.properties)
+            if operation.path and operation.operation then
+                local script = game
+                for _, pathPart in ipairs(operation.path) do
+                    script = script:FindFirstChild(pathPart)
+                    if not script then 
+                        addMessage("Could not find script at path: " .. table.concat(operation.path, "/"), true)
+                        break
+                    end
                 end
-                newInstance.Parent = targetParent
+                
+                if script and (script:IsA("Script") or script:IsA("LocalScript") or script:IsA("ModuleScript")) then
+                    if operation.operation == "modify" and operation.newContent then
+                        script.Source = operation.newContent
+                        addMessage("Modified script: " .. script.Name, false)
+                    end
+                end
             end
         end
     end
     
-    -- Modify existing instances
+    -- Handle modifications (direct property changes)
     if codeData.modifications then
         for _, modData in ipairs(codeData.modifications) do
             local instance = game
@@ -577,14 +566,38 @@ local function applyGeneratedCode(codeData)
             
             if instance and modData.properties then
                 setInstanceProperties(instance, modData.properties)
+                addMessage("Modified instance: " .. instance.Name, false)
             end
         end
     end
     
-    -- Handle part deletions
-    if codeData.deletions then
-        for _, deletion in ipairs(codeData.deletions) do
-            handlePartDeletion(deletion)
+    -- Only create NEW scripts if we're NOT in modification mode
+    if codeData.scripts then
+        for _, scriptData in ipairs(codeData.scripts) do
+            local targetParent = findOrCreatePath(game, scriptData.path)
+            if targetParent then
+                local newScript = Instance.new(scriptData.type)
+                newScript.Name = scriptData.name
+                newScript.Source = scriptData.source
+                newScript.Parent = targetParent
+                addMessage("Created NEW script: " .. scriptData.name .. " in " .. table.concat(scriptData.path, "/"), false)
+            end
+        end
+    end
+    
+    -- Only create NEW instances if we're NOT in modification mode
+    if codeData.instances then
+        for _, instanceData in ipairs(codeData.instances) do
+            local targetParent = findOrCreatePath(game, instanceData.path)
+            if targetParent then
+                local newInstance = Instance.new(instanceData.className)
+                newInstance.Name = instanceData.name
+                if instanceData.properties then
+                    setInstanceProperties(newInstance, instanceData.properties)
+                end
+                newInstance.Parent = targetParent
+                addMessage("Created NEW instance: " .. instanceData.name .. " (" .. instanceData.className .. ")", false)
+            end
         end
     end
 end
@@ -600,17 +613,14 @@ submitButton.MouseButton1Click:Connect(function()
     setLoadingState(true)
     addMessage("Generating code for: " .. prompt, false)
     
-    -- Wrapped in pcall to catch any unexpected errors
     local ok, successOrErr, response = pcall(function()
         return requestAIGeneration(prompt)
     end)
     
     if not ok then
         addMessage("Plugin error: " .. tostring(successOrErr), true)
-        if config.debug then
-            warn("[AI Plugin] Error:", successOrErr)
-        end
-    elseif successOrErr then -- success case
+        print("[AI Plugin] Error:", successOrErr)
+    elseif successOrErr then
         local ok2, err2 = pcall(function()
             applyGeneratedCode(response.data)
         end)
@@ -620,15 +630,11 @@ submitButton.MouseButton1Click:Connect(function()
             addMessage("Code generated and applied successfully!", false)
         else
             addMessage("Error applying changes: " .. tostring(err2), true)
-            if config.debug then
-                warn("[AI Plugin] Error applying changes:", err2)
-            end
+            print("[AI Plugin] Error applying changes:", err2)
         end
-    else -- API error case
+    else
         addMessage("Error: " .. tostring(response), true)
-        if config.debug then
-            warn("[AI Plugin] API Error:", response)
-        end
+        print("[AI Plugin] API Error:", response)
     end
     
     setLoadingState(false)
