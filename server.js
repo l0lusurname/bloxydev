@@ -42,11 +42,12 @@ app.post('/api/accounts/add', async (req, res) => {
 
     const accountId = Date.now().toString();
     
-    // Initialize Microsoft authentication
+    // Initialize Microsoft authentication with better settings for cloud hosting
     const authflow = new Authflow(email, './auth_cache', {
       authTitle: Titles.MinecraftJava,
       deviceType: 'Win32',
-      flow: 'live'
+      flow: 'live',
+      relyingParty: 'https://multiplayer.minecraft.net/',
     });
 
     // This will prompt for Microsoft login
