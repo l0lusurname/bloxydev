@@ -1,38 +1,21 @@
 {
-  "name": "roblox-ai-assistant",
+  "name": "minecraft-bot-manager",
   "version": "1.0.0",
-  "description": "Roblox Studio AI Assistant Plugin Backend - Generates and fixes Roblox Lua code using AI",
-  "main": "src/server.js",
-  "type": "commonjs",
+  "description": "Minecraft bot manager with Microsoft authentication",
+  "main": "server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "frontend": "node frontend-server.js",
-    "test": "jest"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
-  "keywords": [
-    "roblox",
-    "studio",
-    "plugin",
-    "ai",
-    "gpt4",
-    "lua",
-    "code-generation"
-  ],
+  "keywords": ["minecraft", "bot", "mineflayer"],
+  "author": "",
+  "license": "MIT",
   "dependencies": {
-    "axios": "^1.12.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "express-rate-limit": "^7.5.1",
-    "helmet": "^7.0.0",
-    "joi": "^17.13.3",
-    "mongoose": "^7.5.3",
-    "openai": "^4.10.0",
-    "winston": "^3.17.0"
+    "mineflayer": "^4.18.1",
+    "prismarine-auth": "^2.4.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
     "nodemon": "^3.0.1"
   },
   "engines": {
