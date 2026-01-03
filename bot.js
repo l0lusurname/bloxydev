@@ -7,7 +7,7 @@ const PORT = parseInt(process.env.MC_PORT || '25565')
 const USERNAME = process.env.MC_USERNAME
 const PASSWORD = process.env.MC_PASSWORD
 const AUTH = process.env.MC_AUTH || 'microsoft'
-const VERSION = process.env.MC_VERSION || false
+const VERSION = process.env.MC_VERSION || '1.21.1' // Default to stable version
 
 if (!USERNAME) {
   console.error('❌ Missing MC_USERNAME environment variable')
@@ -93,8 +93,10 @@ function startBot() {
     checkTimeoutInterval: 30000,
     hideErrors: false,
     keepAlive: true,
-    validateChannelProtocol: false
-  }
+    validateChannelProtocol: false,
+    // Better compatibility settings
+    skipValidation: true,
+    // Disable
 
   if (PASSWORD) {
     botOptions.password = PASSWORD
