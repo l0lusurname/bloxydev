@@ -93,10 +93,8 @@ function startBot() {
     checkTimeoutInterval: 30000,
     hideErrors: false,
     keepAlive: true,
-    validateChannelProtocol: false,
-    // Better compatibility settings
-    skipValidation: true,
-    // Disable
+    validateChannelProtocol: false
+  }
 
   if (PASSWORD) {
     botOptions.password = PASSWORD
