@@ -19,6 +19,53 @@ let reconnectTimeout = null
 let teamHomeInterval = null
 let bot = null
 
+// Helper function to parse kick/disconnect messages
+function parseMinecraftMessage(msg) {
+  if (typeof msg === 'string') return msg
+  
+  if (typeof msg === 'object') {
+    let text = ''
+    
+    // Handle NBT format
+    if (msg.type === 'compound' && msg.value) {
+      return parseMinecraftMessage(msg.value)
+    }
+    
+    // Get base text
+    if (msg.text) {
+      if (typeof msg.text === 'string') {
+        text += msg.text
+      } else if (msg.text.value) {
+        text += msg.text.value
+      }
+    }
+    
+    // Parse extra components
+    if (msg.extra) {
+      const extras = msg.extra.value || msg.extra
+      if (Array.isArray(extras)) {
+        extras.forEach(part => {
+          text += parseMinecraftMessage(part)
+        })
+      }
+    }
+    
+    // Try to get JSON string representation
+    if (!text && msg.toString) {
+      try {
+        const str = msg.toString()
+        if (str !== '[object Object]') {
+          text = str
+        }
+      } catch (e) {}
+    }
+    
+    return text || JSON.stringify(msg, null, 2)
+  }
+  
+  return String(msg)
+}
+
 function clearIntervals() {
   if (teamHomeInterval) {
     clearInterval(teamHomeInterval)
@@ -42,12 +89,10 @@ function startBot() {
     username: USERNAME,
     auth: AUTH,
     version: VERSION,
-    connectTimeout: 60000, // Increased to 60s
+    connectTimeout: 60000,
     checkTimeoutInterval: 30000,
     hideErrors: false,
-    // Anti-disconnect settings
     keepAlive: true,
-    // Handle connection issues better
     validateChannelProtocol: false
   }
 
@@ -66,7 +111,7 @@ function startBot() {
   bot.once('login', () => {
     console.log(`✅ Logged in as ${USERNAME}`)
     console.log(`📦 Protocol version: ${bot.version}`)
-    reconnectAttempts = 0 // Reset on successful login
+    reconnectAttempts = 0
   })
 
   bot.once('spawn', () => {
@@ -78,7 +123,7 @@ function startBot() {
         console.log('🏠 Executing /team home...')
         bot.chat('/team home')
       }
-    }, 2000) // Wait 2s for server to be fully ready
+    }, 2000)
 
     // Execute /team home every 10 minutes
     teamHomeInterval = setInterval(() => {
@@ -86,17 +131,20 @@ function startBot() {
         console.log('🏠 Executing /team home (scheduled)...')
         bot.chat('/team home')
       }
-    }, 1000 * 60 * 10) // Every 10 minutes
+    }, 1000 * 60 * 10)
   })
 
   bot.on('end', (reason) => {
-    console.log('⚠️ Disconnected:', reason)
+    const parsedReason = parseMinecraftMessage(reason)
+    console.log('⚠️ Disconnected:', parsedReason)
     clearIntervals()
     scheduleReconnect()
   })
 
   bot.on('kicked', (reason) => {
-    console.warn('⚠️ Kicked:', reason)
+    const parsedReason = parseMinecraftMessage(reason)
+    console.warn('⚠️ Kicked:', parsedReason)
+    console.log('📋 Raw kick data:', JSON.stringify(reason, null, 2))
     clearIntervals()
     scheduleReconnect()
   })
@@ -111,31 +159,25 @@ function startBot() {
     if (err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT')) {
       console.log('🔌 Connection issue detected, will retry...')
     }
-
-    // Don't disconnect, let other handlers deal with it
   })
 
   // Handle client errors without crashing
   if (bot._client) {
     bot._client.on('error', (err) => {
       console.error('❌ Client error:', err.message)
-      // These errors usually lead to disconnect anyway
     })
   }
 
-  // Keep-alive mechanism - send position packet periodically
+  // Keep-alive mechanism
   const keepAliveInterval = setInterval(() => {
     if (bot && bot.entity && bot.entity.position) {
-      // Just accessing position keeps connection alive
       const pos = bot.entity.position
-      // Optionally log to show bot is still running
-      if (Date.now() % (1000 * 60 * 5) < 30000) { // Log every ~5 minutes
+      if (Date.now() % (1000 * 60 * 5) < 30000) {
         console.log(`💓 Still connected at ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}`)
       }
     }
-  }, 30000) // Every 30 seconds
+  }, 30000)
 
-  // Clean up interval on bot end
   bot.once('end', () => {
     clearInterval(keepAliveInterval)
   })
@@ -143,8 +185,6 @@ function startBot() {
 
 function scheduleReconnect() {
   reconnectAttempts++
-  
-  // Exponential backoff: 10s, 20s, 30s, max 60s
   const delay = Math.min(10000 * reconnectAttempts, 60000)
   
   console.log(`🔁 Reconnecting in ${delay / 1000}s... (attempt ${reconnectAttempts})`)
@@ -171,7 +211,6 @@ process.on('SIGTERM', () => {
   setTimeout(() => process.exit(0), 1000)
 })
 
-// Handle uncaught errors
 process.on('uncaughtException', (err) => {
   console.error('❌ Uncaught exception:', err.message)
   console.log('🔄 Attempting to recover...')
