@@ -12,7 +12,7 @@ const VERSION = process.env.MC_VERSION || '1.21.11' // Default to stable version
 if (!USERNAME) {
   console.error('❌ Missing MC_USERNAME environment variable')
   process.exit(1)
-}
+} 
 
 let reconnectAttempts = 0
 let reconnectTimeout = null
