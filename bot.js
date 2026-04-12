@@ -7,7 +7,7 @@ const PORT = parseInt(process.env.MC_PORT || '25565')
 const USERNAME = process.env.MC_USERNAME
 const PASSWORD = process.env.MC_PASSWORD
 const AUTH = process.env.MC_AUTH || 'microsoft'
-const VERSION = process.env.MC_VERSION || '1.21.1' // Default to stable version
+const VERSION = process.env.MC_VERSION || '1.21.11' // Default to stable version
 
 if (!USERNAME) {
   console.error('❌ Missing MC_USERNAME environment variable')
