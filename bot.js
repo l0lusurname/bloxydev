@@ -20,30 +20,42 @@ function scheduleTeamHome(firstRun = false) {
   console.log(`⏰ Next /team home in ${delaySecs}s`)
   teamHomeInterval = setTimeout(() => {
     sendChat('/team home')
-    scheduleTeamHome(false) // after first run, always use random interval
+    scheduleTeamHome(false)
   }, delaySecs * 1000)
 }
 
 function sendChat(message) {
   if (!client) return
   try {
-    const packetData = {
-      message,
-      timestamp: BigInt(Date.now()),
-      salt: BigInt(0),
-      signature: Buffer.alloc(0),
-      signedPreview: false,
-      previousMessages: [],
-      lastRejectedMessage: null,
-    }
-    try {
-      client.write('chat_message', packetData)
-    } catch {
-      client.write('chat', { message })
+    // 1.19.1+ chat format — send as a command if it starts with /
+    if (message.startsWith('/')) {
+      client.write('chat_command', {
+        command: message.slice(1), // strip the leading /
+        timestamp: BigInt(Date.now()),
+        salt: BigInt(0),
+        argumentSignatures: [],
+        messageCount: 0,
+        acknowledged: Buffer.alloc(3, 0),
+      })
+    } else {
+      client.write('chat_message', {
+        message,
+        timestamp: BigInt(Date.now()),
+        salt: BigInt(0),
+        signature: undefined,
+        messageCount: 0,
+        acknowledged: Buffer.alloc(3, 0),
+      })
     }
     console.log(`💬 Sent: ${message}`)
   } catch (e) {
-    console.warn(`⚠️ Failed to send message: ${e.message}`)
+    // fallback to legacy chat packet
+    try {
+      client.write('chat', { message })
+      console.log(`💬 Sent (legacy): ${message}`)
+    } catch (e2) {
+      console.warn(`⚠️ Failed to send message: ${e2.message}`)
+    }
   }
 }
 
@@ -105,7 +117,7 @@ function connect() {
     console.log('✅ Logged in!')
     isConnecting = false
     reconnectAttempt = 0
-    scheduleTeamHome(true) // ← always start with the 10s first-run delay
+    scheduleTeamHome(true)
   })
 
   client.on('spawn', () => {
