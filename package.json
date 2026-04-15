@@ -6,6 +6,6 @@
     "start": "node bot.js"
   },
   "dependencies": {
-    "mineflayer": "PrismarineJS/mineflayer"
+    "mineflayer": "^4.20.1"
   }
 }
