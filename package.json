@@ -1,11 +1,12 @@
 {
-  "name": "donutsmp-afk-bot",
+  "name": "afkbot",
   "version": "1.0.0",
+  "description": "DonutSMP AFK bot using node-minecraft-protocol",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "mineflayer": "^4.20.1"
+    "minecraft-protocol": "latest"
   }
 }
