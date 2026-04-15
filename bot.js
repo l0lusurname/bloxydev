@@ -2,7 +2,8 @@ const mc = require('minecraft-protocol')
 
 const HOST = 'donutsmp.net'   // change if needed
 const PORT = 25565
-const VERSION = '1.21.1'      // use a stable supported version; change if server accepts others
+const VERSION = '1.21.1'
+const USERNAME = 'your_email@outlook.com'  // ← PUT YOUR MICROSOFT EMAIL HERE
 
 let client = null
 let teamHomeInterval = null
@@ -13,18 +14,17 @@ function randomBetween(min, max) {
 }
 
 function scheduleTeamHome() {
-  const delay = randomBetween(1, 10) * 60 * 1000 // 1–10 minutes in ms
+  const delay = randomBetween(1, 10) * 60 * 1000
   console.log(`⏰ Next /team home in ${Math.round(delay / 1000)}s`)
   teamHomeInterval = setTimeout(() => {
     sendChat('/team home')
-    scheduleTeamHome() // reschedule after each run
+    scheduleTeamHome()
   }, delay)
 }
 
 function sendChat(message) {
   if (!client) return
   try {
-    // 1.19+ uses 'chat_message', older uses 'chat'
     client.write('chat', { message })
     console.log(`💬 Sent: ${message}`)
   } catch (e) {
@@ -46,8 +46,8 @@ function connect() {
     host: HOST,
     port: PORT,
     version: VERSION,
-    auth: 'microsoft',        // triggers Microsoft OAuth flow on first run
-    // profilesFolder: './profiles', // optional: cache auth tokens here
+    auth: 'microsoft',
+    username: USERNAME,       // ← required even for Microsoft auth
   })
 
   client.on('login', () => {
@@ -60,7 +60,6 @@ function connect() {
     console.log('🌍 Spawned and ready!')
   })
 
-  // Keep alive — respond to server keep-alive packets
   client.on('keep_alive', (packet) => {
     client.write('keep_alive', { keepAliveId: packet.keepAliveId })
   })
@@ -94,7 +93,7 @@ function handleDisconnect(delaySeconds) {
     client = null
   }
 
-  if (reconnectTimer) return // already scheduled
+  if (reconnectTimer) return
 
   console.log(`🔁 Reconnecting in ${delaySeconds}s...`)
   reconnectTimer = setTimeout(() => {
