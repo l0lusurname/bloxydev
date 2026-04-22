@@ -1,12 +1,12 @@
-const mc = require('minecraft-protocol')
+const mc = require('bedrock-protocol')
 
 const HOST = 'donutsmp.net'
-const PORT = 25565
-const VERSION = '1.21.1'
-const USERNAME = 'your_email@outlook.com'  // ← your Microsoft email
+const PORT = 19132
+const VERSION = '1.21.50'
+const OWNER = 'your_username_here' // ← your IGN, for PM detection
 
 let client = null
-let teamHomeInterval = null
+let homeInterval = null
 let reconnectAttempt = 0
 let reconnectTimer = null
 let isConnecting = false
@@ -15,54 +15,95 @@ function randomBetween(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-function scheduleTeamHome(firstRun = false) {
+function scheduleHome(firstRun = false) {
   const delaySecs = firstRun ? 10 : randomBetween(60, 600)
-  console.log(`⏰ Next /team home in ${delaySecs}s`)
-  teamHomeInterval = setTimeout(() => {
-    sendChat('/team home')
-    scheduleTeamHome(false)
+  console.log(`⏰ Next /home 1 in ${delaySecs}s`)
+  homeInterval = setTimeout(() => {
+    sendChat('/home 1')
+    scheduleHome(false)
   }, delaySecs * 1000)
 }
 
 function sendChat(message) {
   if (!client) return
   try {
-    // 1.19.1+ chat format — send as a command if it starts with /
-    if (message.startsWith('/')) {
-      client.write('chat_command', {
-        command: message.slice(1), // strip the leading /
-        timestamp: BigInt(Date.now()),
-        salt: BigInt(0),
-        argumentSignatures: [],
-        messageCount: 0,
-        acknowledged: Buffer.alloc(3, 0),
-      })
-    } else {
-      client.write('chat_message', {
-        message,
-        timestamp: BigInt(Date.now()),
-        salt: BigInt(0),
-        signature: undefined,
-        messageCount: 0,
-        acknowledged: Buffer.alloc(3, 0),
-      })
-    }
+    client.queue('text', {
+      type: 'chat',
+      needs_translation: false,
+      source_name: client.username,
+      xuid: '',
+      platform_chat_id: '',
+      message,
+    })
     console.log(`💬 Sent: ${message}`)
   } catch (e) {
-    // fallback to legacy chat packet
-    try {
-      client.write('chat', { message })
-      console.log(`💬 Sent (legacy): ${message}`)
-    } catch (e2) {
-      console.warn(`⚠️ Failed to send message: ${e2.message}`)
-    }
+    console.warn(`⚠️ Failed to send: ${e.message}`)
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function icecreamRoutine() {
+  console.log('🍦 icecream triggered!')
+
+  // Step 1: /tpa smog39
+  sendChat('/tpa smog39')
+  await sleep(3000) // wait for GUI to open
+
+  // Step 2: Click green glass pane (accept button)
+  // In Bedrock, GUIs are window slots — green glass pane is typically slot 11 in a confirm GUI
+  try {
+    client.queue('inventory_transaction', {
+      legacy: {
+        request_id: 0,
+        request_changes_type: 0,
+        actions: [],
+        transaction_type: 0,
+        transaction_data: {},
+      },
+      actions: [
+        {
+          source: { type: 0, flags: 0, inventory_id: 0 },
+          destination: { type: 0, flags: 0, inventory_id: 0 },
+          slot_id: 11, // green glass pane slot — adjust if needed
+          old_item: { network_id: 0, count: 0 },
+          new_item: { network_id: 0, count: 0 },
+        }
+      ]
+    })
+    console.log('🟢 Clicked green glass pane (slot 11)')
+  } catch (e) {
+    console.warn('⚠️ Click failed:', e.message)
+  }
+
+  // Step 3: Wait 15 seconds
+  console.log('⏳ Waiting 15s...')
+  await sleep(15000)
+
+  // Step 4: /sethome
+  sendChat('/sethome')
+  console.log('🏠 /sethome sent!')
+}
+
+function handleIncomingText(packet) {
+  // Bedrock PM format: "username whispers to you: message" or "§7username§r whispers..."
+  const raw = packet.message || ''
+  const stripped = raw.replace(/§[0-9a-fk-or]/g, '').toLowerCase()
+
+  console.log(`📨 Text packet: ${stripped}`)
+
+  const isWhisper = packet.type === 'whisper' || stripped.includes('whispers to you')
+  if (isWhisper && stripped.includes('icecream')) {
+    icecreamRoutine()
   }
 }
 
 function stopIntervals() {
-  if (teamHomeInterval) {
-    clearTimeout(teamHomeInterval)
-    teamHomeInterval = null
+  if (homeInterval) {
+    clearTimeout(homeInterval)
+    homeInterval = null
   }
 }
 
@@ -72,7 +113,7 @@ function handleDisconnect(delaySeconds) {
 
   if (client) {
     client.removeAllListeners()
-    try { client.end() } catch (_) {}
+    try { client.close() } catch (_) {}
     client = null
   }
 
@@ -96,9 +137,9 @@ function connect() {
       host: HOST,
       port: PORT,
       version: VERSION,
-      auth: 'microsoft',
-      username: USERNAME,
-      closeTimeout: 120000,
+      offline: false,
+      authTitle: mc.title.MinecraftNintendoSwitch,
+      connectTimeout: 120000,
     })
   } catch (err) {
     console.error('❌ Failed to create client:', err.message)
@@ -113,34 +154,26 @@ function connect() {
     handleDisconnect(20)
   })
 
-  client.on('login', () => {
-    console.log('✅ Logged in!')
+  client.on('spawn', () => {
+    console.log('✅ Spawned and ready!')
     isConnecting = false
     reconnectAttempt = 0
-    scheduleTeamHome(true)
+    scheduleHome(true)
   })
 
-  client.on('spawn', () => {
-    console.log('🌍 Spawned and ready!')
+  client.on('text', (packet) => {
+    handleIncomingText(packet)
   })
 
-  client.on('keep_alive', (packet) => {
-    try {
-      client.write('keep_alive', { keepAliveId: packet.keepAliveId })
-    } catch (_) {}
-  })
-
-  client.on('kick_disconnect', (packet) => {
+  client.on('kick', (packet) => {
     isConnecting = false
-    let reason = packet.reason
-    try { reason = JSON.parse(reason) } catch (_) {}
-    console.log('⚠️ Kicked:', JSON.stringify(reason, null, 2))
+    console.log('⚠️ Kicked:', packet.message)
     handleDisconnect(15)
   })
 
-  client.on('end', (reason) => {
+  client.on('close', () => {
     isConnecting = false
-    console.log('🔌 Connection ended:', reason || 'no reason')
+    console.log('🔌 Connection closed')
     handleDisconnect(20)
   })
 }
