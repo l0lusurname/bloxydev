@@ -1,12 +1,11 @@
 {
-  "name": "afkbot",
+  "name": "donut-bot",
   "version": "1.0.0",
-  "description": "DonutSMP AFK bot using node-minecraft-protocol",
-  "main": "bot.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "minecraft-protocol": "latest"
+    "bedrock-protocol": "^3.55.0"
   }
 }
