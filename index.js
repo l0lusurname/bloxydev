@@ -3,7 +3,7 @@ const mc = require('bedrock-protocol')
 const HOST = 'donutsmp.net'
 const PORT = 19132
 const VERSION = '1.21.50'
-const OWNER = 'your_username_here' // ← your IGN, for PM detection
+const OWNER = 'smog39' // ← your IGN, for PM detection
 
 let client = null
 let homeInterval = null
