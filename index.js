@@ -133,14 +133,15 @@ function connect() {
   console.log(`\n🔌 Connecting... (attempt ${reconnectAttempt})`)
 
   try {
-    client = mc.createClient({
-      host: HOST,
-      port: PORT,
-      version: VERSION,
-      offline: false,
-      authTitle: mc.title.MinecraftNintendoSwitch,
-      connectTimeout: 120000,
-    })
+ client = mc.createClient({
+  host: HOST,
+  port: PORT,
+  version: VERSION,
+  offline: false,
+  flow: 'microsoft',
+  authTitle: mc.title.MinecraftNintendoSwitch,
+  connectTimeout: 120000,
+})
   } catch (err) {
     console.error('❌ Failed to create client:', err.message)
     isConnecting = false
